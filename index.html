@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Expense Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom scrollbar for the summary section */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center py-10 px-4">
+
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-[380px] overflow-hidden border border-gray-100">
+        
+        <div class="flex items-center justify-between px-6 py-5">
+            <div class="flex items-center space-x-2">
+                <button onclick="changeMonth(-1)" class="text-red-500 hover:text-red-600 focus:outline-none text-2xl font-light select-none">&lt;</button>
+                <h1 id="month-display" class="text-3xl font-bold text-gray-900 tracking-tight">March</h1>
+                <button onclick="changeMonth(1)" class="text-red-500 hover:text-red-600 focus:outline-none text-2xl font-light select-none">&gt;</button>
+                <span id="year-display" class="text-gray-400 text-sm ml-1 font-medium hidden">2026</span>
+            </div>
+            
+            <div class="flex items-center space-x-3">
+                <button onclick="exportToCSV()" class="text-red-500 hover:text-red-600 focus:outline-none transition-colors" title="Export Month to CSV">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <div class="px-6 pb-2">
+            <div class="grid grid-cols-7 gap-1 text-center mb-2">
+                <div class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">S</div>
+                <div class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">M</div>
+                <div class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">T</div>
+                <div class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">W</div>
+                <div class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">T</div>
+                <div class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">F</div>
+                <div class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">S</div>
+            </div>
+            <div id="calendar-days" class="grid grid-cols-7 gap-y-2 gap-x-1 text-center"></div>
+        </div>
+
+        <div class="border-t border-gray-100 bg-gray-50/50 px-6 py-4 flex justify-between items-center mt-2">
+            <div id="selected-date-text" class="text-[15px] font-medium text-gray-800">Loading...</div>
+            <div id="daily-total" class="text-[15px] font-medium text-gray-500">$0.00</div>
+        </div>
+
+        <div class="px-6 py-4 bg-gray-50/50 border-t border-gray-100 flex flex-col space-y-2">
+            <div class="flex items-center space-x-2">
+                <select id="expense-category" onchange="toggleCustomCategory()" class="flex-1 bg-white border border-gray-200 text-gray-700 text-sm rounded-lg focus:ring-red-500 focus:border-red-500 block w-full p-2.5 outline-none appearance-none shadow-sm cursor-pointer">
+                    <option value="Food/Drinks">Food/Drinks</option>
+                    <option value="Parking">Parking</option>
+                    <option value="Grocery">Grocery</option>
+                    <option value="Event">Event</option>
+                    <option value="Beer">Beer</option>
+                    <option value="Online shopping">Online shopping</option>
+                    <option value="Vehicle Care">Vehicle Care</option>
+                    <option value="Data plan">Data plan</option>
+                    <option value="Gift">Gift</option>
+                    <option value="Fitness">Fitness</option>
+                    <option value="Family">Family</option>
+                    <option value="Contact lens">Contact lens</option>
+                    <option value="Hair cut">Hair cut</option>
+                    <option value="Coffee bean and Milk">Coffee bean and Milk</option>
+                    <option value="Travel">Travel</option>
+                    <option value="Other">Other</option>
+                </select>
+                
+                <div class="relative w-24 shadow-sm">
+                    <div class="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
+                        <span class="text-gray-500 sm:text-sm">$</span>
+                    </div>
+                    <input type="number" id="expense-amount" step="0.01" min="0" class="bg-white border border-gray-200 text-gray-900 text-sm rounded-lg focus:ring-red-500 focus:border-red-500 block w-full pl-6 pr-2 py-2.5 outline-none" placeholder="0.00">
+                </div>
+
+                <button onclick="addExpense()" class="text-white bg-[#ff3b30] hover:bg-red-600 focus:ring-4 focus:ring-red-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center transition-colors shadow-sm">
+                    Add
+                </button>
+            </div>
+            
+            <input type="text" id="custom-category" class="hidden bg-white border border-gray-200 text-gray-900 text-sm rounded-lg focus:ring-red-500 focus:border-red-500 block w-full p-2.5 outline-none shadow-sm transition-all" placeholder="Specify the expense type...">
+        </div>
+
+        <div class="px-6 py-2 bg-white">
+            <ul id="daily-expense-list" class="space-y-2 max-h-32 overflow-y-auto pr-1"></ul>
+        </div>
+
+        <div class="border-t border-gray-200 px-6 py-5 bg-white">
+            <div class="flex justify-between items-end mb-4">
+                <h3 class="text-sm font-bold text-gray-800 uppercase tracking-wide">Monthly Summary</h3>
+                <div class="text-right">
+                    <div class="text-xs text-gray-400 font-medium uppercase mb-0.5">Total Spent</div>
+                    <div id="monthly-total" class="text-2xl font-bold text-[#ff3b30] leading-none">$0.00</div>
+                </div>
+            </div>
+            
+            <div id="category-list" class="space-y-3 max-h-48 overflow-y-auto pr-2">
+                <div class="text-sm text-center text-gray-400 py-4 italic">Loading cloud database...</div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+        // =========================================================================
+        // Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyBoUPFJZn5vnREHkc3PRjwAoooMGy6Vqgk",
+  authDomain: "new-tracker-552fb.firebaseapp.com",
+  projectId: "new-tracker-552fb",
+  storageBucket: "new-tracker-552fb.firebasestorage.app",
+  messagingSenderId: "579534758798",
+  appId: "1:579534758798:web:28b2316c74467dc2e03adf"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+        // =========================================================================
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_PROJECT_ID.appspot.com",
+            messagingSenderId: "YOUR_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
+        // =========================================================================
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        let expenses = {}; 
+        let currentDate = new Date(); 
+        let currentMonth = currentDate.getMonth();
+        let currentYear = currentDate.getFullYear();
+        let selectedDateStr = formatDate(currentDate);
+
+        const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+        const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+        function formatDate(date) {
+            const yyyy = date.getFullYear();
+            const mm = String(date.getMonth() + 1).padStart(2, '0');
+            const dd = String(date.getDate()).padStart(2, '0');
+            return `${yyyy}-${mm}-${dd}`;
+        }
+
+        function formatCurrency(amount) {
+            return '$' + parseFloat(amount).toFixed(2);
+        }
+
+        const q = query(collection(db, "expenses"), orderBy("createdAt", "asc"));
+        onSnapshot(q, (snapshot) => {
+            expenses = {}; 
+            snapshot.forEach((document) => {
+                const data = document.data();
+                if (!expenses[data.date]) {
+                    expenses[data.date] = [];
+                }
+                expenses[data.date].push({ id: document.id, category: data.category, amount: data.amount });
+            });
+            
+            renderCalendar();
+            updateSelectedDayUI();
+            updateDailyExpensesUI();
+            updateMonthlySummaryUI();
+        });
+
+        window.changeMonth = function(direction) {
+            currentMonth += direction;
+            if (currentMonth > 11) {
+                currentMonth = 0;
+                currentYear++;
+            } else if (currentMonth < 0) {
+                currentMonth = 11;
+                currentYear--;
+            }
+            window.selectDate(new Date(currentYear, currentMonth, 1));
+        };
+
+        window.selectDate = function(dateObj) {
+            currentDate = dateObj;
+            selectedDateStr = formatDate(currentDate);
+            renderCalendar();
+            updateSelectedDayUI();
+            updateDailyExpensesUI();
+        };
+
+        window.toggleCustomCategory = function() {
+            const categorySelect = document.getElementById('expense-category');
+            const customInput = document.getElementById('custom-category');
+            if (categorySelect.value === 'Other') {
+                customInput.classList.remove('hidden');
+                customInput.focus();
+            } else {
+                customInput.classList.add('hidden');
+                customInput.value = '';
+            }
+        };
+
+        window.addExpense = async function() {
+            const categorySelect = document.getElementById('expense-category');
+            const customInput = document.getElementById('custom-category');
+            const amountInput = document.getElementById('expense-amount');
+            
+            let category = categorySelect.value;
+            if (category === 'Other') {
+                const customVal = customInput.value.trim();
+                category = customVal !== '' ? customVal : 'Other';
+            }
+
+            const amount = parseFloat(amountInput.value);
+
+            if (isNaN(amount) || amount <= 0) {
+                amountInput.classList.add('border-red-500', 'animate-pulse');
+                setTimeout(() => amountInput.classList.remove('border-red-500', 'animate-pulse'), 1000);
+                return;
+            }
+
+            try {
+                await addDoc(collection(db, "expenses"), {
+                    date: selectedDateStr,
+                    category: category,
+                    amount: amount,
+                    createdAt: new Date()
+                });
+
+                amountInput.value = '';
+                customInput.value = '';
+                customInput.classList.add('hidden');
+                categorySelect.value = 'Food/Drinks'; 
+            } catch (error) {
+                console.error("Error adding document: ", error);
+                alert("Error saving expense to the cloud. Check your Firebase keys and Firestore Security Rules.");
+            }
+        };
+
+        window.deleteExpense = async function(index) {
+            const exp = expenses[selectedDateStr][index];
+            if (!exp || !exp.id) return;
+
+            try {
+                await deleteDoc(doc(db, "expenses", exp.id));
+            } catch (error) {
+                console.error("Error deleting document: ", error);
+                alert("Error deleting expense. Check Firestore Rules.");
+            }
+        };
+
+        document.getElementById('expense-amount').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') window.addExpense();
+        });
+
+        function renderCalendar() {
+            document.getElementById('month-display').innerText = monthNames[currentMonth];
+            document.getElementById('year-display').innerText = currentYear;
+            
+            const yearDisplay = document.getElementById('year-display');
+            if (currentYear !== new Date().getFullYear()) {
+                yearDisplay.classList.remove('hidden');
+            } else {
+                yearDisplay.classList.add('hidden');
+            }
+
+            const daysContainer = document.getElementById('calendar-days');
+            daysContainer.innerHTML = '';
+
+            const firstDayIndex = new Date(currentYear, currentMonth, 1).getDay();
+            const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+
+            for (let i = 0; i < firstDayIndex; i++) {
+                const emptySlot = document.createElement('div');
+                daysContainer.appendChild(emptySlot);
+            }
+
+            for (let i = 1; i <= daysInMonth; i++) {
+                const dayDate = new Date(currentYear, currentMonth, i);
+                const dayStr = formatDate(dayDate);
+                const isSelected = dayStr === selectedDateStr;
+                const hasExpenses = expenses[dayStr] && expenses[dayStr].length > 0;
+
+                const dayBtn = document.createElement('button');
+                dayBtn.onclick = () => window.selectDate(dayDate);
+                
+                let classes = "relative w-9 h-9 mx-auto flex items-center justify-center rounded-full text-[15px] transition-all duration-200 outline-none ";
+                
+                if (isSelected) {
+                    classes += "bg-[#ff3b30] text-white font-bold shadow-md transform scale-105";
+                } else {
+                    classes += "text-gray-700 hover:bg-gray-200";
+                }
+
+                dayBtn.className = classes;
+                dayBtn.innerText = i;
+
+                if (hasExpenses && !isSelected) {
+                    const dot = document.createElement('div');
+                    dot.className = "absolute bottom-1 w-1 h-1 bg-red-400 rounded-full";
+                    dayBtn.appendChild(dot);
+                }
+
+                daysContainer.appendChild(dayBtn);
+            }
+        }
+
+        function updateSelectedDayUI() {
+            const dayName = dayNames[currentDate.getDay()];
+            const monthName = monthNames[currentDate.getMonth()];
+            const dayNum = currentDate.getDate();
+            document.getElementById('selected-date-text').innerText = `${dayName}, ${monthName} ${dayNum}`;
+
+            let dailyTotal = 0;
+            if (expenses[selectedDateStr]) {
+                dailyTotal = expenses[selectedDateStr].reduce((sum, item) => sum + item.amount, 0);
+            }
+            document.getElementById('daily-total').innerText = formatCurrency(dailyTotal);
+        }
+
+        function updateDailyExpensesUI() {
+            const listContainer = document.getElementById('daily-expense-list');
+            listContainer.innerHTML = ''; 
+
+            const dailyExps = expenses[selectedDateStr] || [];
+            
+            if (dailyExps.length === 0) return; 
+
+            dailyExps.forEach((exp, index) => {
+                const li = document.createElement('li');
+                li.className = "flex justify-between items-center text-sm bg-gray-50 px-3 py-2 rounded-md border border-gray-100";
+                li.innerHTML = `
+                    <span class="text-gray-700 font-medium">${exp.category}</span>
+                    <div class="flex items-center space-x-3">
+                        <span class="font-semibold text-gray-800">${formatCurrency(exp.amount)}</span>
+                        <button onclick="window.deleteExpense(${index})" class="text-gray-400 hover:text-red-500 focus:outline-none transition-colors" title="Delete">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+                `;
+                listContainer.appendChild(li);
+            });
+        }
+
+        function updateMonthlySummaryUI() {
+            const listContainer = document.getElementById('category-list');
+            listContainer.innerHTML = ''; 
+
+            let monthlyTotal = 0;
+            const categoryTotals = {};
+            const targetMonthPrefix = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
+
+            for (const dateStr in expenses) {
+                if (dateStr.startsWith(targetMonthPrefix)) {
+                    expenses[dateStr].forEach(expense => {
+                        monthlyTotal += expense.amount;
+                        if (!categoryTotals[expense.category]) {
+                            categoryTotals[expense.category] = 0;
+                        }
+                        categoryTotals[expense.category] += expense.amount;
+                    });
+                }
+            }
+
+            document.getElementById('monthly-total').innerText = formatCurrency(monthlyTotal);
+
+            const categories = Object.keys(categoryTotals);
+            
+            if (categories.length === 0) {
+                listContainer.innerHTML = '<div class="text-sm text-center text-gray-400 py-4 italic">No expenses recorded this month.</div>';
+                return;
+            }
+
+            categories.sort((a, b) => categoryTotals[b] - categoryTotals[a]);
+
+            categories.forEach(cat => {
+                const total = categoryTotals[cat];
+                const percentage = monthlyTotal > 0 ? ((total / monthlyTotal) * 100).toFixed(0) : 0;
+                
+                const itemDiv = document.createElement('div');
+                itemDiv.className = "flex justify-between items-center text-sm";
+                itemDiv.innerHTML = `
+                    <div class="flex items-center space-x-2 flex-1">
+                        <div class="w-2 h-2 rounded-full bg-gray-300"></div>
+                        <span class="text-gray-700 font-medium">${cat}</span>
+                        <span class="text-xs text-gray-400">${percentage}%</span>
+                    </div>
+                    <div class="font-semibold text-gray-800">${formatCurrency(total)}</div>
+                `;
+                listContainer.appendChild(itemDiv);
+            });
+        }
+
+        window.exportToCSV = function() {
+            const targetMonthPrefix = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
+            let csvContent = "data:text/csv;charset=utf-8,Date,Category,Amount\n";
+            let hasData = false;
+
+            const sortedDates = Object.keys(expenses).sort();
+
+            for (const dateStr of sortedDates) {
+                if (dateStr.startsWith(targetMonthPrefix)) {
+                    expenses[dateStr].forEach(exp => {
+                        hasData = true;
+                        csvContent += `${dateStr},"${exp.category}",${exp.amount.toFixed(2)}\n`;
+                    });
+                }
+            }
+
+            if (!hasData) {
+                alert(`No data to export for ${monthNames[currentMonth]} ${currentYear}`);
+                return;
+            }
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `Expenses_${monthNames[currentMonth]}_${currentYear}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        };
+
+        renderCalendar();
+        updateSelectedDayUI();
+    </script>
+</body>
+</html>
