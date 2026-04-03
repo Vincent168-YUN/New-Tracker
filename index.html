@@ -185,7 +185,14 @@
                 }
             } catch (error) {
                 console.error("Authentication Error:", error);
-                document.getElementById('loading-state').innerText = "Failed to authenticate.";
+                const loadingState = document.getElementById('loading-state');
+                if (loadingState) {
+                    if (error.code === 'auth/operation-not-allowed') {
+                        loadingState.innerHTML = `<span class="text-red-500 font-bold">Error:</span> Anonymous Sign-in is disabled in your Firebase Console.`;
+                    } else {
+                        loadingState.innerText = "Failed to authenticate: " + error.message;
+                    }
+                }
             }
         };
 
@@ -307,7 +314,10 @@
         };
 
         window.addExpense = async function() {
-            if (!currentUser) return; // Guard clause
+            if (!currentUser) {
+                alert("Authentication required. Please check the error at the bottom of the summary or ensure Anonymous Sign-In is enabled in Firebase.");
+                return; // Guard clause
+            }
             
             const categorySelect = document.getElementById('expense-category');
             const customInput = document.getElementById('custom-category');
