@@ -111,8 +111,9 @@
                         <div class="relative flex items-center">
                             <span class="text-gray-500 font-medium mr-1">$</span>
                             <input type="number" id="monthly-income-input" 
-                                   onclick="this.classList.toggle('blur-[5px]')"
-                                   class="bg-transparent text-green-600 font-bold text-lg w-full outline-none blur-[5px] focus:blur-none transition-all duration-300 cursor-pointer" 
+                                   onfocus="this.classList.remove('blur-[5px]')"
+                                   onblur="this.classList.add('blur-[5px]')"
+                                   class="bg-transparent text-green-600 font-bold text-lg w-full outline-none blur-[5px] transition-all duration-300 cursor-pointer" 
                                    placeholder="0.00" onchange="updateIncome()">
                         </div>
                     </div>
@@ -122,7 +123,7 @@
                     </div>
                     <div class="col-span-2 pt-2 border-t border-gray-200 mt-1 flex justify-between items-center">
                          <div class="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Remaining Balance</div>
-                         <div id="remaining-balance" onclick="this.classList.toggle('blur-[5px]')" class="text-xl font-bold text-gray-900 blur-[5px] transition-all duration-300 cursor-pointer select-none" title="Tap to toggle visibility">$0.00</div>
+                         <div id="remaining-balance" onclick="this.classList.remove('blur-[5px]')" class="text-xl font-bold text-gray-900 blur-[5px] transition-all duration-300 cursor-pointer select-none" title="Tap to toggle visibility">$0.00</div>
                     </div>
                 </div>
             </div>
@@ -374,6 +375,14 @@
             if (e.key === 'Enter') window.addExpense();
         });
 
+        // Global click listener to re-blur remaining balance when clicking anywhere else
+        document.addEventListener('click', function(e) {
+            const remainingEl = document.getElementById('remaining-balance');
+            if (remainingEl && e.target !== remainingEl) {
+                remainingEl.classList.add('blur-[5px]');
+            }
+        });
+
         window.updateIncome = async function() {
             if (!currentUser) return;
             const input = document.getElementById('monthly-income-input');
@@ -517,13 +526,11 @@
                 const isNegative = remaining < 0;
                 remainingEl.innerText = (isNegative ? '-' : '') + formatCurrency(Math.abs(remaining));
                 
-                // Preserve the blur state if the user has already tapped it
-                const currentBlurState = remainingEl.classList.contains('blur-[5px]') ? 'blur-[5px]' : '';
-                
+                // Force blur to reset whenever the UI updates (like adding an expense)
                 if (isNegative) {
-                    remainingEl.className = `text-xl font-bold text-[#ff3b30] transition-all duration-300 cursor-pointer select-none ${currentBlurState}`;
+                    remainingEl.className = `text-xl font-bold text-[#ff3b30] blur-[5px] transition-all duration-300 cursor-pointer select-none`;
                 } else {
-                    remainingEl.className = `text-xl font-bold text-green-500 transition-all duration-300 cursor-pointer select-none ${currentBlurState}`;
+                    remainingEl.className = `text-xl font-bold text-green-500 blur-[5px] transition-all duration-300 cursor-pointer select-none`;
                 }
             }
 
