@@ -155,14 +155,25 @@
         // Environment Configuration
         // =========================================================================
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'expense-tracker-app';
-        let firebaseConfig = null;
+        
+        // Use your configuration as a fallback so it runs properly locally or on your own host
+        let firebaseConfig = {
+            apiKey: "AIzaSyBoUPFJZn5vnREHkc3PRjwAoooMGy6Vqgk",
+            authDomain: "new-tracker-552fb.firebaseapp.com",
+            projectId: "new-tracker-552fb",
+            storageBucket: "new-tracker-552fb.firebasestorage.app",
+            messagingSenderId: "579534758798",
+            appId: "1:579534758798:web:28b2316c74467dc2e03adf"
+        };
         try {
-            firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+            if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+                firebaseConfig = JSON.parse(__firebase_config);
+            }
         } catch (e) {
-            console.error("Invalid firebase config");
+            console.error("Invalid environment firebase config", e);
         }
 
-        const app = initializeApp(firebaseConfig || {});
+        const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
         let currentUser = null;
@@ -235,6 +246,7 @@
             } catch (error) {
                 console.error("Auth error:", error);
                 showToast("Failed to authenticate.");
+                document.getElementById('category-list').innerHTML = `<div class="text-xs text-center text-red-500 py-4 px-2">Auth Error: <br>${error.message}</div>`;
             }
         };
 
@@ -286,6 +298,7 @@
                 updateMonthlySummaryUI();
             }, (error) => {
                 console.error("Snapshot error:", error);
+                document.getElementById('category-list').innerHTML = `<div class="text-xs text-center text-red-500 py-4 px-2 pb-10">Data Error (Expenses): <br>${error.message}</div>`;
                 showToast("Error reading expenses.");
             });
 
@@ -300,6 +313,7 @@
                 updateMonthlySummaryUI();
             }, (error) => {
                 console.error("Income snapshot error:", error);
+                document.getElementById('category-list').innerHTML = `<div class="text-xs text-center text-red-500 py-4 px-2 pb-10">Data Error (Income): <br>${error.message}</div>`;
                 showToast("Error reading income data.");
             });
         }
