@@ -357,17 +357,30 @@
             }
         };
 
-        window.deleteExpense = async function(index) {
+        window.deleteCategoryExpenses = async function(category) {
             if (!currentUser) return; // Guard clause
             
-            const exp = expenses[selectedDateStr][index];
-            if (!exp || !exp.id) return;
+            const dailyExps = expenses[selectedDateStr] || [];
+            const expsToDelete = dailyExps.filter(exp => exp.category === category);
+            
+            for (const exp of expsToDelete) {
+                if (!exp || !exp.id) continue;
+                try {
+                    const docRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'expenses', exp.id);
+                    await deleteDoc(docRef);
+                } catch (error) {
+                    console.error("Error deleting document: ", error);
+                }
+            }
+        };
 
+        window.deleteSingleExpense = async function(expId) {
+            if (!currentUser || !expId) return;
             try {
-                const docRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'expenses', exp.id);
+                const docRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'expenses', expId);
                 await deleteDoc(docRef);
             } catch (error) {
-                console.error("Error deleting document: ", error);
+                console.error("Error deleting single document: ", error);
             }
         };
 
@@ -470,18 +483,61 @@
             
             if (dailyExps.length === 0) return; 
 
-            dailyExps.forEach((exp, index) => {
+            // Group expenses by category
+            const categoryGroups = {};
+            dailyExps.forEach((exp) => {
+                if (!categoryGroups[exp.category]) {
+                    categoryGroups[exp.category] = { total: 0, items: [] };
+                }
+                categoryGroups[exp.category].total += exp.amount;
+                categoryGroups[exp.category].items.push(exp);
+            });
+
+            Object.keys(categoryGroups).forEach((category, catIndex) => {
+                const group = categoryGroups[category];
                 const li = document.createElement('li');
-                li.className = "flex justify-between items-center text-sm bg-gray-50 px-3 py-2 rounded-md border border-gray-100";
+                li.className = "flex flex-col bg-gray-50 rounded-md border border-gray-100 overflow-hidden text-sm";
+                
+                // Add a small badge if there are multiple entries for this category today
+                const countBadge = group.items.length > 1 ? `<span class="text-[10px] text-gray-400 bg-gray-200 px-1.5 py-0.5 rounded-md ml-1.5">x${group.items.length}</span>` : '';
+
+                const uniqueId = `cat-details-${catIndex}`;
+                const iconId = `cat-icon-${catIndex}`;
+
+                let itemsHtml = '';
+                group.items.forEach((item) => {
+                    itemsHtml += `
+                        <div class="flex justify-between items-center py-1.5 pl-9 pr-3 border-t border-gray-100 bg-gray-100/50 hover:bg-gray-200/50 transition-colors">
+                            <span class="text-gray-500 text-xs font-medium">${formatCurrency(item.amount)}</span>
+                            <button onclick="window.deleteSingleExpense('${item.id}'); event.stopPropagation();" class="text-gray-400 hover:text-red-500 focus:outline-none transition-colors" title="Delete this specific entry">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                    `;
+                });
+
                 li.innerHTML = `
-                    <span class="text-gray-700 font-medium">${exp.category}</span>
-                    <div class="flex items-center space-x-3">
-                        <span class="font-semibold text-gray-800">${formatCurrency(exp.amount)}</span>
-                        <button onclick="window.deleteExpense(${index})" class="text-gray-400 hover:text-red-500 focus:outline-none transition-colors" title="Delete">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    <div class="flex justify-between items-center px-3 py-2 cursor-pointer hover:bg-gray-100 transition-colors" onclick="document.getElementById('${uniqueId}').classList.toggle('hidden'); document.getElementById('${iconId}').classList.toggle('rotate-180');">
+                        <div class="flex items-center">
+                            <svg id="${iconId}" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400 mr-1.5 transition-transform duration-200 ${group.items.length > 1 ? '' : 'opacity-40'}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
                             </svg>
-                        </button>
+                            <span class="text-gray-700 font-medium">${category}</span>
+                            ${countBadge}
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <span class="font-semibold text-gray-800">${formatCurrency(group.total)}</span>
+                            <button onclick="window.deleteCategoryExpenses('${category.replace(/'/g, "\\'")}'); event.stopPropagation();" class="text-gray-400 hover:text-red-500 focus:outline-none transition-colors" title="Delete All ${category} Today">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div id="${uniqueId}" class="hidden flex-col">
+                        ${itemsHtml}
                     </div>
                 `;
                 listContainer.appendChild(li);
