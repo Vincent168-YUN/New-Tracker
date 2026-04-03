@@ -11,44 +11,18 @@
         ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
         ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
-        
-        /* Hide number input spinners */
-        input[type="number"]::-webkit-inner-spin-button,
-        input[type="number"]::-webkit-outer-spin-button {
-            -webkit-appearance: none;
-            margin: 0;
-        }
-        input[type="number"] {
-            -moz-appearance: textfield;
-        }
-
-        /* Hide number in income box until focused */
-        .mask-income:not(:focus) {
-            color: transparent;
-            text-shadow: 0 0 5px rgba(0, 0, 0, 0.4);
-        }
-        @supports (-webkit-text-security: disc) {
-            .mask-income:not(:focus) {
-                color: inherit;
-                text-shadow: none;
-                -webkit-text-security: disc;
-            }
-        }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen flex items-center justify-center py-10 px-4">
-
-    <!-- Toast Notifications Container -->
-    <div id="toast-container" class="fixed bottom-4 right-4 flex flex-col space-y-2 z-50 pointer-events-none"></div>
 
     <div class="bg-white rounded-2xl shadow-xl w-full max-w-[380px] overflow-hidden border border-gray-100">
         
         <div class="flex items-center justify-between px-6 py-5">
             <div class="flex items-center space-x-2">
                 <button onclick="changeMonth(-1)" class="text-red-500 hover:text-red-600 focus:outline-none text-2xl font-light select-none">&lt;</button>
-                <h1 id="month-display" class="text-3xl font-bold text-gray-900 tracking-tight">Month</h1>
+                <h1 id="month-display" class="text-3xl font-bold text-gray-900 tracking-tight">March</h1>
                 <button onclick="changeMonth(1)" class="text-red-500 hover:text-red-600 focus:outline-none text-2xl font-light select-none">&gt;</button>
-                <span id="year-display" class="text-gray-400 text-sm ml-1 font-medium hidden">Year</span>
+                <span id="year-display" class="text-gray-400 text-sm ml-1 font-medium hidden">2026</span>
             </div>
             
             <div class="flex items-center space-x-3">
@@ -70,7 +44,7 @@
                 <div class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">F</div>
                 <div class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">S</div>
             </div>
-            <div id="calendar-days" class="grid grid-cols-7 gap-y-1 gap-x-1 text-center"></div>
+            <div id="calendar-days" class="grid grid-cols-7 gap-y-2 gap-x-1 text-center"></div>
         </div>
 
         <div class="border-t border-gray-100 bg-gray-50/50 px-6 py-4 flex justify-between items-center mt-2">
@@ -119,72 +93,41 @@
         </div>
 
         <div class="border-t border-gray-200 px-6 py-5 bg-white">
-            <h3 class="text-sm font-bold text-gray-800 uppercase tracking-wide mb-3">Monthly Summary</h3>
-            
-            <!-- Income and Balance Section -->
-            <div class="grid grid-cols-3 gap-2 mb-4 bg-gray-50/80 p-3 rounded-lg border border-gray-100">
-                <div>
-                    <label class="text-[10px] text-gray-400 font-bold uppercase mb-1 block">Income</label>
-                    <div class="relative shadow-sm">
-                        <span class="absolute left-2 top-1 text-gray-400 text-xs font-medium">$</span>
-                        <input type="number" id="monthly-income" class="mask-income w-full pl-4 pr-1 py-1 bg-white border border-gray-200 rounded text-xs font-medium text-gray-900 outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition-all" placeholder="0.00" onchange="saveIncome()">
-                    </div>
-                </div>
-                <div class="text-center">
-                    <div class="text-[10px] text-gray-400 font-bold uppercase mb-1">Spent</div>
-                    <div id="monthly-total" class="text-sm font-bold text-[#ff3b30] leading-loose truncate">$0.00</div>
-                </div>
+            <div class="flex justify-between items-end mb-4">
+                <h3 class="text-sm font-bold text-gray-800 uppercase tracking-wide">Monthly Summary</h3>
                 <div class="text-right">
-                    <div class="text-[10px] text-gray-400 font-bold uppercase mb-1">Balance</div>
-                    <div id="monthly-balance" class="text-sm font-bold text-gray-800 leading-loose truncate">$0.00</div>
+                    <div class="text-xs text-gray-400 font-medium uppercase mb-0.5">Total Spent</div>
+                    <div id="monthly-total" class="text-2xl font-bold text-[#ff3b30] leading-none">$0.00</div>
                 </div>
             </div>
             
-            <div id="category-list" class="space-y-3 max-h-48 overflow-y-auto pr-2 pt-2 border-t border-gray-100">
-                <div class="text-sm text-center text-gray-400 py-4 italic">Authenticating and loading...</div>
+            <div id="category-list" class="space-y-3 max-h-48 overflow-y-auto pr-2">
+                <div class="text-sm text-center text-gray-400 py-4 italic">Loading cloud database...</div>
             </div>
         </div>
     </div>
 
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, setDoc, deleteDoc, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
         // =========================================================================
-        // Environment Configuration
+        // YOUR CORRECTED FIREBASE CONFIGURATION
         // =========================================================================
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'expense-tracker-app';
-        
-        // Use your configuration as a fallback so it runs properly locally or on your own host
-        let firebaseConfig = {
-            apiKey: "AIzaSyBoUPFJZn5vnREHkc3PRjwAoooMGy6Vqgk",
-            authDomain: "new-tracker-552fb.firebaseapp.com",
-            projectId: "new-tracker-552fb",
-            storageBucket: "new-tracker-552fb.firebasestorage.app",
-            messagingSenderId: "579534758798",
-            appId: "1:579534758798:web:28b2316c74467dc2e03adf"
+        const firebaseConfig = {
+          apiKey: "AIzaSyBoUPFJZn5vnREHkc3PRjwAoooMGy6Vqgk",
+          authDomain: "new-tracker-552fb.firebaseapp.com",
+          projectId: "new-tracker-552fb",
+          storageBucket: "new-tracker-552fb.firebasestorage.app",
+          messagingSenderId: "579534758798",
+          appId: "1:579534758798:web:28b2316c74467dc2e03adf"
         };
-        try {
-            if (typeof __firebase_config !== 'undefined' && __firebase_config) {
-                firebaseConfig = JSON.parse(__firebase_config);
-            }
-        } catch (e) {
-            console.error("Invalid environment firebase config", e);
-        }
+        // =========================================================================
 
         const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
         const db = getFirestore(app);
-        let currentUser = null;
-        let unsubscribeExpenses = null;
-        let unsubscribeIncome = null;
 
-        // =========================================================================
-        // Application State
-        // =========================================================================
         let expenses = {}; 
-        let incomeData = {}; // Stores income by month, e.g., { "2026-03": 5000 }
         let currentDate = new Date(); 
         let currentMonth = currentDate.getMonth();
         let currentYear = currentDate.getFullYear();
@@ -192,28 +135,6 @@
 
         const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
         const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-
-        // =========================================================================
-        // UI Helpers
-        // =========================================================================
-        function showToast(message, type = 'error') {
-            const container = document.getElementById('toast-container');
-            const toast = document.createElement('div');
-            const bgClass = type === 'error' ? 'bg-red-500' : 'bg-gray-800';
-            const iconClass = type === 'success' ? 'bg-green-500' : bgClass;
-            
-            toast.className = `${iconClass} text-white px-4 py-2 rounded-lg shadow-lg text-sm transition-opacity duration-300 opacity-0`;
-            toast.innerText = message;
-            container.appendChild(toast);
-
-            void toast.offsetWidth; // Reflow
-            toast.classList.remove('opacity-0');
-
-            setTimeout(() => {
-                toast.classList.add('opacity-0');
-                setTimeout(() => toast.remove(), 300);
-            }, 3000);
-        }
 
         function formatDate(date) {
             const yyyy = date.getFullYear();
@@ -223,104 +144,26 @@
         }
 
         function formatCurrency(amount) {
-            const isNegative = amount < 0;
-            const absAmount = Math.abs(amount);
-            return (isNegative ? '-' : '') + '$' + absAmount.toFixed(2);
+            return '$' + parseFloat(amount).toFixed(2);
         }
 
-        function formatCompactCurrency(amount) {
-            if (amount >= 1000) return '$' + (amount / 1000).toFixed(1) + 'k';
-            return '$' + Math.round(amount);
-        }
-
-        // =========================================================================
-        // Authentication & Realtime Database
-        // =========================================================================
-        const initAuth = async () => {
-            try {
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    await signInWithCustomToken(auth, __initial_auth_token);
-                } else {
-                    await signInAnonymously(auth);
+        const q = query(collection(db, "expenses"), orderBy("createdAt", "asc"));
+        onSnapshot(q, (snapshot) => {
+            expenses = {}; 
+            snapshot.forEach((document) => {
+                const data = document.data();
+                if (!expenses[data.date]) {
+                    expenses[data.date] = [];
                 }
-            } catch (error) {
-                console.error("Auth error:", error);
-                showToast("Failed to authenticate.");
-                document.getElementById('category-list').innerHTML = `<div class="text-xs text-center text-red-500 py-4 px-2">Auth Error: <br>${error.message}</div>`;
-            }
-        };
-
-        initAuth();
-
-        onAuthStateChanged(auth, (user) => {
-            currentUser = user;
-            if (user) {
-                setupRealtimeListeners(user.uid);
-            } else {
-                if (unsubscribeExpenses) unsubscribeExpenses();
-                if (unsubscribeIncome) unsubscribeIncome();
-                expenses = {};
-                incomeData = {};
-                renderCalendar();
-                updateSelectedDayUI();
-                updateDailyExpensesUI();
-                updateMonthlySummaryUI();
-                document.getElementById('category-list').innerHTML = '<div class="text-sm text-center text-gray-400 py-4 italic">Signed out.</div>';
-            }
+                expenses[data.date].push({ id: document.id, category: data.category, amount: data.amount });
+            });
+            
+            renderCalendar();
+            updateSelectedDayUI();
+            updateDailyExpensesUI();
+            updateMonthlySummaryUI();
         });
 
-        function setupRealtimeListeners(userId) {
-            if (unsubscribeExpenses) unsubscribeExpenses();
-            if (unsubscribeIncome) unsubscribeIncome();
-            
-            // 1. Listen to Expenses
-            const expensesRef = collection(db, 'artifacts', appId, 'users', userId, 'expenses');
-            unsubscribeExpenses = onSnapshot(expensesRef, (snapshot) => {
-                expenses = {}; 
-                let tempExpenses = [];
-
-                snapshot.forEach((document) => {
-                    tempExpenses.push({ id: document.id, ...document.data() });
-                });
-
-                tempExpenses.sort((a, b) => a.createdAt - b.createdAt);
-
-                tempExpenses.forEach(data => {
-                    if (!expenses[data.date]) {
-                        expenses[data.date] = [];
-                    }
-                    expenses[data.date].push({ id: data.id, category: data.category, amount: data.amount });
-                });
-                
-                renderCalendar();
-                updateSelectedDayUI();
-                updateDailyExpensesUI();
-                updateMonthlySummaryUI();
-            }, (error) => {
-                console.error("Snapshot error:", error);
-                document.getElementById('category-list').innerHTML = `<div class="text-xs text-center text-red-500 py-4 px-2 pb-10">Data Error (Expenses): <br>${error.message}</div>`;
-                showToast("Error reading expenses.");
-            });
-
-            // 2. Listen to Income
-            const incomeRef = collection(db, 'artifacts', appId, 'users', userId, 'income');
-            unsubscribeIncome = onSnapshot(incomeRef, (snapshot) => {
-                incomeData = {};
-                snapshot.forEach(doc => {
-                    // Document ID is formatted as "YYYY-MM"
-                    incomeData[doc.id] = doc.data().amount || 0;
-                });
-                updateMonthlySummaryUI();
-            }, (error) => {
-                console.error("Income snapshot error:", error);
-                document.getElementById('category-list').innerHTML = `<div class="text-xs text-center text-red-500 py-4 px-2 pb-10">Data Error (Income): <br>${error.message}</div>`;
-                showToast("Error reading income data.");
-            });
-        }
-
-        // =========================================================================
-        // Application Logic
-        // =========================================================================
         window.changeMonth = function(direction) {
             currentMonth += direction;
             if (currentMonth > 11) {
@@ -354,11 +197,6 @@
         };
 
         window.addExpense = async function() {
-            if (!currentUser) {
-                showToast("Please wait for authentication to complete.");
-                return;
-            }
-
             const categorySelect = document.getElementById('expense-category');
             const customInput = document.getElementById('custom-category');
             const amountInput = document.getElementById('expense-amount');
@@ -378,12 +216,11 @@
             }
 
             try {
-                const expensesRef = collection(db, 'artifacts', appId, 'users', currentUser.uid, 'expenses');
-                await addDoc(expensesRef, {
+                await addDoc(collection(db, "expenses"), {
                     date: selectedDateStr,
                     category: category,
                     amount: amount,
-                    createdAt: Date.now() 
+                    createdAt: new Date()
                 });
 
                 amountInput.value = '';
@@ -392,41 +229,19 @@
                 categorySelect.value = 'Food/Drinks'; 
             } catch (error) {
                 console.error("Error adding document: ", error);
-                showToast("Failed to save expense. Please try again.");
+                alert("Error saving expense to the cloud. Check your Firebase keys and Firestore Security Rules.");
             }
         };
 
         window.deleteExpense = async function(index) {
-            if (!currentUser) return;
             const exp = expenses[selectedDateStr][index];
             if (!exp || !exp.id) return;
 
             try {
-                const docRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'expenses', exp.id);
-                await deleteDoc(docRef);
+                await deleteDoc(doc(db, "expenses", exp.id));
             } catch (error) {
                 console.error("Error deleting document: ", error);
-                showToast("Failed to delete expense.");
-            }
-        };
-
-        window.saveIncome = async function() {
-            if (!currentUser) return;
-            const targetMonthPrefix = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
-            const incomeInput = document.getElementById('monthly-income');
-            const amount = parseFloat(incomeInput.value) || 0;
-
-            try {
-                // Save income using a specific doc ID for the month "YYYY-MM"
-                const docRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'income', targetMonthPrefix);
-                await setDoc(docRef, { 
-                    amount: amount, 
-                    updatedAt: Date.now() 
-                });
-                showToast("Income saved successfully!", "success");
-            } catch (error) {
-                console.error("Error saving income: ", error);
-                showToast("Failed to save income.");
+                alert("Error deleting expense. Check Firestore Rules.");
             }
         };
 
@@ -434,9 +249,6 @@
             if (e.key === 'Enter') window.addExpense();
         });
 
-        // =========================================================================
-        // Render Functions
-        // =========================================================================
         function renderCalendar() {
             document.getElementById('month-display').innerText = monthNames[currentMonth];
             document.getElementById('year-display').innerText = currentYear;
@@ -464,35 +276,27 @@
                 const dayStr = formatDate(dayDate);
                 const isSelected = dayStr === selectedDateStr;
                 const hasExpenses = expenses[dayStr] && expenses[dayStr].length > 0;
-                
-                let dailyTotal = 0;
-                if (hasExpenses) {
-                    dailyTotal = expenses[dayStr].reduce((sum, item) => sum + item.amount, 0);
-                }
 
                 const dayBtn = document.createElement('button');
                 dayBtn.onclick = () => window.selectDate(dayDate);
                 
-                // Adjusted calendar button height and layout to accommodate the daily total
-                let classes = "relative w-full h-10 flex flex-col items-center justify-center rounded-lg text-[14px] transition-all duration-200 outline-none ";
+                let classes = "relative w-9 h-9 mx-auto flex items-center justify-center rounded-full text-[15px] transition-all duration-200 outline-none ";
                 
                 if (isSelected) {
-                    classes += "bg-[#ff3b30] text-white shadow-md transform scale-105 font-bold ";
+                    classes += "bg-[#ff3b30] text-white font-bold shadow-md transform scale-105";
                 } else {
                     classes += "text-gray-700 hover:bg-gray-200";
                 }
 
                 dayBtn.className = classes;
-                
-                // Content of the day cell
-                let contentHtml = `<span class="${dailyTotal > 0 ? 'mt-1' : ''}">${i}</span>`;
-                
-                if (dailyTotal > 0) {
-                    const textColorClass = isSelected ? "text-red-100" : "text-gray-400";
-                    contentHtml += `<span class="text-[9px] font-semibold tracking-tighter ${textColorClass} mt-0.5 leading-none">${formatCompactCurrency(dailyTotal)}</span>`;
+                dayBtn.innerText = i;
+
+                if (hasExpenses && !isSelected) {
+                    const dot = document.createElement('div');
+                    dot.className = "absolute bottom-1 w-1 h-1 bg-red-400 rounded-full";
+                    dayBtn.appendChild(dot);
                 }
-                
-                dayBtn.innerHTML = contentHtml;
+
                 daysContainer.appendChild(dayBtn);
             }
         }
@@ -516,10 +320,7 @@
 
             const dailyExps = expenses[selectedDateStr] || [];
             
-            if (dailyExps.length === 0) {
-                listContainer.innerHTML = '<li class="text-sm text-center text-gray-400 py-2 italic">No expenses for this day.</li>';
-                return;
-            }
+            if (dailyExps.length === 0) return; 
 
             dailyExps.forEach((exp, index) => {
                 const li = document.createElement('li');
@@ -528,7 +329,7 @@
                     <span class="text-gray-700 font-medium">${exp.category}</span>
                     <div class="flex items-center space-x-3">
                         <span class="font-semibold text-gray-800">${formatCurrency(exp.amount)}</span>
-                        <button onclick="window.deleteExpense(${index})" class="text-gray-400 hover:text-red-500 focus:outline-none transition-colors pointer-events-auto" title="Delete">
+                        <button onclick="window.deleteExpense(${index})" class="text-gray-400 hover:text-red-500 focus:outline-none transition-colors" title="Delete">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                             </svg>
@@ -547,7 +348,6 @@
             const categoryTotals = {};
             const targetMonthPrefix = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
 
-            // Calculate Monthly Total
             for (const dateStr in expenses) {
                 if (dateStr.startsWith(targetMonthPrefix)) {
                     expenses[dateStr].forEach(expense => {
@@ -560,33 +360,10 @@
                 }
             }
 
-            // Grab Monthly Income
-            const monthlyIncome = incomeData[targetMonthPrefix] || 0;
-            const incomeInput = document.getElementById('monthly-income');
-            
-            // Only update the income input if the user isn't currently typing in it
-            if (document.activeElement !== incomeInput) {
-                incomeInput.value = monthlyIncome > 0 ? monthlyIncome : '';
-            }
-
             document.getElementById('monthly-total').innerText = formatCurrency(monthlyTotal);
 
-            // Calculate Balance
-            const balance = monthlyIncome - monthlyTotal;
-            const balanceEl = document.getElementById('monthly-balance');
-            balanceEl.innerText = formatCurrency(balance);
-            
-            // Set balance color
-            if (balance < 0) {
-                balanceEl.className = "text-sm font-bold text-[#ff3b30] leading-loose truncate"; // Red
-            } else if (balance > 0) {
-                balanceEl.className = "text-sm font-bold text-green-600 leading-loose truncate"; // Green
-            } else {
-                balanceEl.className = "text-sm font-bold text-gray-800 leading-loose truncate"; // Neutral
-            }
-
-            // Render Category List
             const categories = Object.keys(categoryTotals);
+            
             if (categories.length === 0) {
                 listContainer.innerHTML = '<div class="text-sm text-center text-gray-400 py-4 italic">No expenses recorded this month.</div>';
                 return;
@@ -629,7 +406,7 @@
             }
 
             if (!hasData) {
-                showToast(`No data to export for ${monthNames[currentMonth]} ${currentYear}`);
+                alert(`No data to export for ${monthNames[currentMonth]} ${currentYear}`);
                 return;
             }
 
@@ -642,7 +419,6 @@
             document.body.removeChild(link);
         };
 
-        // Initial setup
         renderCalendar();
         updateSelectedDayUI();
     </script>
