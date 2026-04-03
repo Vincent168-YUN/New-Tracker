@@ -11,6 +11,13 @@
         ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
         ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
+        
+        /* Hide number input spinners */
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { 
+            -webkit-appearance: none; 
+            margin: 0; 
+        }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen flex items-center justify-center py-10 px-4">
@@ -95,39 +102,62 @@
         <div class="border-t border-gray-200 px-6 py-5 bg-white">
             <div class="flex justify-between items-end mb-4">
                 <h3 class="text-sm font-bold text-gray-800 uppercase tracking-wide">Monthly Summary</h3>
-                <div class="text-right">
-                    <div class="text-xs text-gray-400 font-medium uppercase mb-0.5">Total Spent</div>
-                    <div id="monthly-total" class="text-2xl font-bold text-[#ff3b30] leading-none">$0.00</div>
+            </div>
+            
+            <div class="bg-gray-50 rounded-xl p-3 mb-4 border border-gray-100">
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <div class="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-0.5">Income</div>
+                        <div class="relative flex items-center">
+                            <span class="text-gray-500 font-medium mr-1">$</span>
+                            <input type="number" id="monthly-income-input" 
+                                   class="bg-transparent text-green-600 font-bold text-lg w-full outline-none blur-[5px] hover:blur-none focus:blur-none transition-all duration-300" 
+                                   placeholder="0.00" onchange="updateIncome()">
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-0.5">Spent</div>
+                        <div id="monthly-total" class="text-lg font-bold text-[#ff3b30] leading-none mt-1">$0.00</div>
+                    </div>
+                    <div class="col-span-2 pt-2 border-t border-gray-200 mt-1 flex justify-between items-center">
+                         <div class="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Remaining Balance</div>
+                         <div id="remaining-balance" class="text-xl font-bold text-gray-900 blur-[5px] hover:blur-none transition-all duration-300 cursor-default">$0.00</div>
+                    </div>
                 </div>
             </div>
             
             <div id="category-list" class="space-y-3 max-h-48 overflow-y-auto pr-2">
-                <div class="text-sm text-center text-gray-400 py-4 italic">Loading cloud database...</div>
+                <div class="text-sm text-center text-gray-400 py-4 italic" id="loading-state">Loading cloud database...</div>
             </div>
         </div>
     </div>
 
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // =========================================================================
-        // YOUR CORRECTED FIREBASE CONFIGURATION
+        // DYNAMIC FIREBASE CONFIGURATION (Execution Environment Rules)
         // =========================================================================
-        const firebaseConfig = {
-          apiKey: "AIzaSyBoUPFJZn5vnREHkc3PRjwAoooMGy6Vqgk",
-          authDomain: "new-tracker-552fb.firebaseapp.com",
-          projectId: "new-tracker-552fb",
-          storageBucket: "new-tracker-552fb.firebasestorage.app",
-          messagingSenderId: "579534758798",
-          appId: "1:579534758798:web:28b2316c74467dc2e03adf"
-        };
-        // =========================================================================
-
+        let firebaseConfig = {};
+        if (typeof __firebase_config !== 'undefined') {
+            firebaseConfig = JSON.parse(__firebase_config);
+        } else {
+            console.error("No __firebase_config found. App requires environment execution.");
+        }
+        
         const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
         const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        let currentUser = null;
+        let unsubscribeSnap = null;
+        let unsubscribeIncomesSnap = null;
+        // =========================================================================
 
         let expenses = {}; 
+        let monthlyIncomes = {};
         let currentDate = new Date(); 
         let currentMonth = currentDate.getMonth();
         let currentYear = currentDate.getFullYear();
@@ -135,6 +165,84 @@
 
         const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
         const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+        // Initialization: Auth Before Queries
+        const initAuth = async () => {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (error) {
+                console.error("Authentication Error:", error);
+                document.getElementById('loading-state').innerText = "Failed to authenticate.";
+            }
+        };
+
+        initAuth();
+
+        onAuthStateChanged(auth, (user) => {
+            currentUser = user;
+            if (user) {
+                loadExpenses(user.uid);
+            } else {
+                expenses = {};
+                monthlyIncomes = {};
+                renderCalendar();
+                updateSelectedDayUI();
+                updateDailyExpensesUI();
+                updateMonthlySummaryUI();
+                document.getElementById('loading-state').innerText = "Please log in.";
+            }
+        });
+
+        function loadExpenses(userId) {
+            if (unsubscribeSnap) unsubscribeSnap();
+            if (unsubscribeIncomesSnap) unsubscribeIncomesSnap();
+            
+            // STRICT PATH: artifacts/{appId}/users/{userId}/{collectionName}
+            const expensesRef = collection(db, 'artifacts', appId, 'users', userId, 'expenses');
+            
+            // NO COMPLEX QUERIES: Fetch everything, sort in memory
+            unsubscribeSnap = onSnapshot(expensesRef, (snapshot) => {
+                expenses = {}; 
+                let tempExps = [];
+                
+                snapshot.forEach((document) => {
+                    tempExps.push({ id: document.id, ...document.data() });
+                });
+
+                // In-memory sort by creation time
+                tempExps.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+
+                tempExps.forEach(data => {
+                    if (!expenses[data.date]) {
+                        expenses[data.date] = [];
+                    }
+                    expenses[data.date].push({ id: data.id, category: data.category, amount: data.amount });
+                });
+                
+                document.getElementById('loading-state')?.remove(); // Remove loading state once data arrives
+                renderCalendar();
+                updateSelectedDayUI();
+                updateDailyExpensesUI();
+                updateMonthlySummaryUI();
+            }, (error) => {
+                console.error("Snapshot Error:", error);
+            });
+
+            const incomesRef = collection(db, 'artifacts', appId, 'users', userId, 'incomes');
+            unsubscribeIncomesSnap = onSnapshot(incomesRef, (snapshot) => {
+                monthlyIncomes = {};
+                snapshot.forEach((doc) => {
+                    monthlyIncomes[doc.id] = doc.data().amount || 0;
+                });
+                updateMonthlySummaryUI();
+            }, (error) => {
+                console.error("Incomes Snapshot Error:", error);
+            });
+        }
 
         function formatDate(date) {
             const yyyy = date.getFullYear();
@@ -146,23 +254,6 @@
         function formatCurrency(amount) {
             return '$' + parseFloat(amount).toFixed(2);
         }
-
-        const q = query(collection(db, "expenses"), orderBy("createdAt", "asc"));
-        onSnapshot(q, (snapshot) => {
-            expenses = {}; 
-            snapshot.forEach((document) => {
-                const data = document.data();
-                if (!expenses[data.date]) {
-                    expenses[data.date] = [];
-                }
-                expenses[data.date].push({ id: document.id, category: data.category, amount: data.amount });
-            });
-            
-            renderCalendar();
-            updateSelectedDayUI();
-            updateDailyExpensesUI();
-            updateMonthlySummaryUI();
-        });
 
         window.changeMonth = function(direction) {
             currentMonth += direction;
@@ -182,6 +273,7 @@
             renderCalendar();
             updateSelectedDayUI();
             updateDailyExpensesUI();
+            updateMonthlySummaryUI();
         };
 
         window.toggleCustomCategory = function() {
@@ -197,6 +289,8 @@
         };
 
         window.addExpense = async function() {
+            if (!currentUser) return; // Guard clause
+            
             const categorySelect = document.getElementById('expense-category');
             const customInput = document.getElementById('custom-category');
             const amountInput = document.getElementById('expense-amount');
@@ -216,11 +310,12 @@
             }
 
             try {
-                await addDoc(collection(db, "expenses"), {
+                const expensesRef = collection(db, 'artifacts', appId, 'users', currentUser.uid, 'expenses');
+                await addDoc(expensesRef, {
                     date: selectedDateStr,
                     category: category,
                     amount: amount,
-                    createdAt: new Date()
+                    createdAt: new Date().toISOString() // Save ISO string for easy in-memory sorting
                 });
 
                 amountInput.value = '';
@@ -229,25 +324,40 @@
                 categorySelect.value = 'Food/Drinks'; 
             } catch (error) {
                 console.error("Error adding document: ", error);
-                alert("Error saving expense to the cloud. Check your Firebase keys and Firestore Security Rules.");
             }
         };
 
         window.deleteExpense = async function(index) {
+            if (!currentUser) return; // Guard clause
+            
             const exp = expenses[selectedDateStr][index];
             if (!exp || !exp.id) return;
 
             try {
-                await deleteDoc(doc(db, "expenses", exp.id));
+                const docRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'expenses', exp.id);
+                await deleteDoc(docRef);
             } catch (error) {
                 console.error("Error deleting document: ", error);
-                alert("Error deleting expense. Check Firestore Rules.");
             }
         };
 
         document.getElementById('expense-amount').addEventListener('keypress', function (e) {
             if (e.key === 'Enter') window.addExpense();
         });
+
+        window.updateIncome = async function() {
+            if (!currentUser) return;
+            const input = document.getElementById('monthly-income-input');
+            const newAmount = parseFloat(input.value) || 0;
+            const targetMonthPrefix = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
+            
+            try {
+                const docRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'incomes', targetMonthPrefix);
+                await setDoc(docRef, { amount: newAmount }, { merge: true });
+            } catch (error) {
+                console.error("Error updating income: ", error);
+            }
+        };
 
         function renderCalendar() {
             document.getElementById('month-display').innerText = monthNames[currentMonth];
@@ -342,7 +452,9 @@
 
         function updateMonthlySummaryUI() {
             const listContainer = document.getElementById('category-list');
-            listContainer.innerHTML = ''; 
+            
+            // Only clear it if we have finished loading to prevent removing the loading text early
+            if(currentUser) listContainer.innerHTML = ''; 
 
             let monthlyTotal = 0;
             const categoryTotals = {};
@@ -362,9 +474,30 @@
 
             document.getElementById('monthly-total').innerText = formatCurrency(monthlyTotal);
 
+            const currentIncome = monthlyIncomes[targetMonthPrefix] || 0;
+            const incomeInput = document.getElementById('monthly-income-input');
+            
+            if (incomeInput && document.activeElement !== incomeInput) {
+                incomeInput.value = currentIncome > 0 ? currentIncome : '';
+            }
+
+            const remaining = currentIncome - monthlyTotal;
+            const remainingEl = document.getElementById('remaining-balance');
+            
+            if (remainingEl) {
+                const isNegative = remaining < 0;
+                remainingEl.innerText = (isNegative ? '-' : '') + formatCurrency(Math.abs(remaining));
+                
+                if (isNegative) {
+                    remainingEl.className = "text-xl font-bold text-[#ff3b30] blur-[5px] hover:blur-none transition-all duration-300 cursor-default";
+                } else {
+                    remainingEl.className = "text-xl font-bold text-green-500 blur-[5px] hover:blur-none transition-all duration-300 cursor-default";
+                }
+            }
+
             const categories = Object.keys(categoryTotals);
             
-            if (categories.length === 0) {
+            if (categories.length === 0 && currentUser) {
                 listContainer.innerHTML = '<div class="text-sm text-center text-gray-400 py-4 italic">No expenses recorded this month.</div>';
                 return;
             }
