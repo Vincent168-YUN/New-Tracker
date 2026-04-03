@@ -140,11 +140,20 @@
         // =========================================================================
         // DYNAMIC FIREBASE CONFIGURATION (Execution Environment Rules)
         // =========================================================================
-        let firebaseConfig = {};
+        let firebaseConfig;
         if (typeof __firebase_config !== 'undefined') {
             firebaseConfig = JSON.parse(__firebase_config);
         } else {
-            console.error("No __firebase_config found. App requires environment execution.");
+            // Fallback to your original config if testing locally outside the environment
+            console.warn("Using local fallback Firebase configuration.");
+            firebaseConfig = {
+                apiKey: "AIzaSyBoUPFJZn5vnREHkc3PRjwAoooMGy6Vqgk",
+                authDomain: "new-tracker-552fb.firebaseapp.com",
+                projectId: "new-tracker-552fb",
+                storageBucket: "new-tracker-552fb.firebasestorage.app",
+                messagingSenderId: "579534758798",
+                appId: "1:579534758798:web:28b2316c74467dc2e03adf"
+            };
         }
         
         const app = initializeApp(firebaseConfig);
@@ -213,8 +222,17 @@
                     tempExps.push({ id: document.id, ...document.data() });
                 });
 
-                // In-memory sort by creation time
-                tempExps.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+                // In-memory sort safely handling string dates, Firebase Timestamps, and missing values
+                tempExps.sort((a, b) => {
+                    const getMs = (val) => {
+                        if (!val) return 0;
+                        if (typeof val.toMillis === 'function') return val.toMillis();
+                        if (typeof val.toDate === 'function') return val.toDate().getTime();
+                        const ms = new Date(val).getTime();
+                        return isNaN(ms) ? 0 : ms;
+                    };
+                    return getMs(a.createdAt) - getMs(b.createdAt);
+                });
 
                 tempExps.forEach(data => {
                     if (!expenses[data.date]) {
