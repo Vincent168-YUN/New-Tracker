@@ -111,7 +111,8 @@
                         <div class="relative flex items-center">
                             <span class="text-gray-500 font-medium mr-1">$</span>
                             <input type="number" id="monthly-income-input" 
-                                   class="bg-transparent text-green-600 font-bold text-lg w-full outline-none blur-[5px] hover:blur-none focus:blur-none transition-all duration-300" 
+                                   onclick="this.classList.toggle('blur-[5px]')"
+                                   class="bg-transparent text-green-600 font-bold text-lg w-full outline-none blur-[5px] focus:blur-none transition-all duration-300 cursor-pointer" 
                                    placeholder="0.00" onchange="updateIncome()">
                         </div>
                     </div>
@@ -121,7 +122,7 @@
                     </div>
                     <div class="col-span-2 pt-2 border-t border-gray-200 mt-1 flex justify-between items-center">
                          <div class="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Remaining Balance</div>
-                         <div id="remaining-balance" onclick="this.classList.toggle('blur-[5px]')" class="text-xl font-bold text-gray-900 blur-[5px] hover:blur-none transition-all duration-300 cursor-pointer select-none" title="Tap to toggle visibility">$0.00</div>
+                         <div id="remaining-balance" onclick="this.classList.toggle('blur-[5px]')" class="text-xl font-bold text-gray-900 blur-[5px] transition-all duration-300 cursor-pointer select-none" title="Tap to toggle visibility">$0.00</div>
                     </div>
                 </div>
             </div>
@@ -520,9 +521,9 @@
                 const currentBlurState = remainingEl.classList.contains('blur-[5px]') ? 'blur-[5px]' : '';
                 
                 if (isNegative) {
-                    remainingEl.className = `text-xl font-bold text-[#ff3b30] hover:blur-none transition-all duration-300 cursor-pointer select-none ${currentBlurState}`;
+                    remainingEl.className = `text-xl font-bold text-[#ff3b30] transition-all duration-300 cursor-pointer select-none ${currentBlurState}`;
                 } else {
-                    remainingEl.className = `text-xl font-bold text-green-500 hover:blur-none transition-all duration-300 cursor-pointer select-none ${currentBlurState}`;
+                    remainingEl.className = `text-xl font-bold text-green-500 transition-all duration-300 cursor-pointer select-none ${currentBlurState}`;
                 }
             }
 
