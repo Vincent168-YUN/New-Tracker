@@ -137,7 +137,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, setDoc, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // =========================================================================
         // DYNAMIC FIREBASE CONFIGURATION (Execution Environment Rules)
@@ -203,6 +203,7 @@
         onAuthStateChanged(auth, (user) => {
             currentUser = user;
             if (user) {
+                autoDeleteOldData(user.uid);
                 loadExpenses(user.uid);
             } else {
                 expenses = {};
@@ -214,6 +215,41 @@
                 document.getElementById('loading-state').innerText = "Please log in.";
             }
         });
+
+        async function autoDeleteOldData(userId) {
+            // Calculate the date exactly 12 months ago
+            const oneYearAgo = new Date();
+            oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+            const cutoffDateStr = formatDate(oneYearAgo); // e.g. "2025-04-04"
+            const cutoffMonthStr = cutoffDateStr.substring(0, 7); // e.g. "2025-04"
+
+            try {
+                // 1. Fetch and delete expenses older than 1 year
+                const expensesRef = collection(db, 'artifacts', appId, 'users', userId, 'expenses');
+                const expSnapshot = await getDocs(expensesRef);
+                
+                expSnapshot.forEach((document) => {
+                    const data = document.data();
+                    // String comparison works perfectly for YYYY-MM-DD formats
+                    if (data.date && data.date < cutoffDateStr) {
+                        deleteDoc(doc(db, 'artifacts', appId, 'users', userId, 'expenses', document.id));
+                    }
+                });
+
+                // 2. Fetch and delete monthly income limits older than 1 year
+                const incomesRef = collection(db, 'artifacts', appId, 'users', userId, 'incomes');
+                const incSnapshot = await getDocs(incomesRef);
+                
+                incSnapshot.forEach((document) => {
+                    // Income document IDs are formatted as "YYYY-MM"
+                    if (document.id < cutoffMonthStr) {
+                        deleteDoc(doc(db, 'artifacts', appId, 'users', userId, 'incomes', document.id));
+                    }
+                });
+            } catch (error) {
+                console.error("Error pruning old data:", error);
+            }
+        }
 
         function loadExpenses(userId) {
             if (unsubscribeSnap) unsubscribeSnap();
