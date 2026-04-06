@@ -179,7 +179,7 @@
         let unsubscribeIncomesSnap = null;
         // =========================================================================
 
-        const defaultCategories = ["Food/Drinks", "Parking", "Grocery", "Event", "Beer", "Online shopping", "Vehicle Care", "Data plan", "Gift", "Fitness", "Family", "Contact lens", "Hair cut", "Coffee bean and Milk", "Travel", "Other"];
+        const defaultCategories = ["Food/Drinks", "Parking", "Grocery", "Event", "Beer", "Online shopping", "Vehicle Care", "Data plan", "Gift", "Fitness", "Family", "Contact lens", "Hair cut", "Coffee bean and Milk", "Travel", "Other"].sort((a, b) => a.localeCompare(b));
         let userCategories = [...defaultCategories];
         let unsubscribeCategoriesSnap = null;
 
@@ -329,7 +329,7 @@
             const categoriesRef = doc(db, 'artifacts', appId, 'users', userId, 'preferences', 'categories');
             unsubscribeCategoriesSnap = onSnapshot(categoriesRef, (docSnap) => {
                 if (docSnap.exists() && docSnap.data().list) {
-                    userCategories = docSnap.data().list;
+                    userCategories = docSnap.data().list.sort((a, b) => a.localeCompare(b));
                 } else {
                     userCategories = [...defaultCategories];
                 }
@@ -759,7 +759,7 @@
             
             if (!newCat || userCategories.includes(newCat)) return;
             
-            const updatedList = [...userCategories, newCat];
+            const updatedList = [...userCategories, newCat].sort((a, b) => a.localeCompare(b));
             const categoriesRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'preferences', 'categories');
             
             // Disable button briefly to prevent double clicks
