@@ -125,7 +125,7 @@
                 </div>
             </div>
             
-            <div id="category-list" class="space-y-3 max-h-80 overflow-y-auto pr-2">
+            <div id="category-list" class="space-y-3 max-h-[500px] overflow-y-auto pr-2 pb-4">
                 <div class="text-sm text-center text-gray-400 py-4 italic" id="loading-state">Loading cloud database...</div>
             </div>
         </div>
@@ -698,14 +698,14 @@
 
                 barsHtml += `
                     <div class="flex flex-col justify-end items-center flex-1 h-full min-w-[16px] max-w-[48px] group">
-                        <div class="text-[10px] font-bold text-gray-500 mb-1.5 transition-all duration-300 group-hover:-translate-y-1 group-hover:text-gray-800 z-20">${displayPercentage}%</div>
-                        <div class="w-full rounded-t-md transition-all duration-300 group-hover:-translate-y-1 relative flex flex-col items-center justify-end shadow-sm border border-black/5" style="height: ${barHeight}%; min-height: 80px; background-color: ${color};">
+                        <div class="text-[11px] font-bold text-gray-500 mb-1.5 transition-all duration-300 group-hover:-translate-y-1 group-hover:text-gray-800 z-20">${displayPercentage}%</div>
+                        <div class="w-full rounded-t-md transition-all duration-300 group-hover:-translate-y-1 relative flex flex-col items-center justify-end shadow-sm border border-black/5" style="height: ${barHeight}%; min-height: 120px; background-color: ${color};">
                             <div class="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent pointer-events-none rounded-t-md"></div>
                             
                             <!-- Vertical text container (overflow-visible to prevent text truncation) -->
-                            <div class="z-10 text-white flex gap-1.5 pt-1.5 pb-2 h-full w-full justify-start items-center overflow-visible" style="writing-mode: vertical-rl; transform: rotate(180deg);">
-                                <span class="text-[10px] font-medium whitespace-nowrap leading-none" style="text-shadow: 0px 1px 3px rgba(0,0,0,0.8);">${cat}</span>
-                                <span class="text-[11px] font-bold tracking-tight whitespace-nowrap leading-none" style="text-shadow: 0px 1px 3px rgba(0,0,0,0.8);">${formatCurrency(total)}</span>
+                            <div class="z-10 text-white flex gap-2 pt-2 pb-3 h-full w-full justify-start items-center overflow-visible" style="writing-mode: vertical-rl; transform: rotate(180deg);">
+                                <span class="text-[11px] font-medium whitespace-nowrap leading-none tracking-wide" style="text-shadow: 0px 1px 3px rgba(0,0,0,0.8);">${cat}</span>
+                                <span class="text-[12px] font-bold tracking-tight whitespace-nowrap leading-none" style="text-shadow: 0px 1px 3px rgba(0,0,0,0.8);">${formatCurrency(total)}</span>
                             </div>
                         </div>
                     </div>
@@ -713,7 +713,7 @@
             });
             
             const chartHtml = `
-                <div class="w-full h-72 mt-6 mb-2 relative">
+                <div class="w-full h-96 mt-6 mb-2 relative">
                     <!-- Squeezed Bars Container -->
                     <div class="absolute inset-0 flex items-end w-full">
                         <div class="flex h-full w-full items-end justify-around gap-1 pb-1 px-1">
