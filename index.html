@@ -146,6 +146,9 @@
         </div>
     </div>
 
+    <!-- Custom Toast Container -->
+    <div id="toast-container" class="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50 flex flex-col space-y-2 pointer-events-none"></div>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
@@ -158,7 +161,6 @@
         if (typeof __firebase_config !== 'undefined') {
             firebaseConfig = JSON.parse(__firebase_config);
         } else {
-            // Fallback to your original config if testing locally outside the environment
             console.warn("Using local fallback Firebase configuration.");
             firebaseConfig = {
                 apiKey: "AIzaSyBoUPFJZn5vnREHkc3PRjwAoooMGy6Vqgk",
@@ -192,6 +194,20 @@
 
         const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
         const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+        // Toast Notification System to replace alerts
+        window.showToast = function(message, isError = false) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `px-4 py-3 rounded-lg shadow-xl text-sm font-medium transition-all duration-300 ${isError ? 'bg-red-500 text-white' : 'bg-gray-800 text-white'}`;
+            toast.innerText = message;
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        };
 
         // Initialization: Auth Before Queries
         const initAuth = async () => {
@@ -235,31 +251,26 @@
         });
 
         async function autoDeleteOldData(userId) {
-            // Calculate the date exactly 12 months ago
             const oneYearAgo = new Date();
             oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-            const cutoffDateStr = formatDate(oneYearAgo); // e.g. "2025-04-04"
-            const cutoffMonthStr = cutoffDateStr.substring(0, 7); // e.g. "2025-04"
+            const cutoffDateStr = formatDate(oneYearAgo); 
+            const cutoffMonthStr = cutoffDateStr.substring(0, 7); 
 
             try {
-                // 1. Fetch and delete expenses older than 1 year
                 const expensesRef = collection(db, 'artifacts', appId, 'users', userId, 'expenses');
                 const expSnapshot = await getDocs(expensesRef);
                 
                 expSnapshot.forEach((document) => {
                     const data = document.data();
-                    // String comparison works perfectly for YYYY-MM-DD formats
                     if (data.date && data.date < cutoffDateStr) {
                         deleteDoc(doc(db, 'artifacts', appId, 'users', userId, 'expenses', document.id));
                     }
                 });
 
-                // 2. Fetch and delete monthly income limits older than 1 year
                 const incomesRef = collection(db, 'artifacts', appId, 'users', userId, 'incomes');
                 const incSnapshot = await getDocs(incomesRef);
                 
                 incSnapshot.forEach((document) => {
-                    // Income document IDs are formatted as "YYYY-MM"
                     if (document.id < cutoffMonthStr) {
                         deleteDoc(doc(db, 'artifacts', appId, 'users', userId, 'incomes', document.id));
                     }
@@ -274,10 +285,8 @@
             if (unsubscribeIncomesSnap) unsubscribeIncomesSnap();
             if (unsubscribeCategoriesSnap) unsubscribeCategoriesSnap();
             
-            // STRICT PATH: artifacts/{appId}/users/{userId}/{collectionName}
             const expensesRef = collection(db, 'artifacts', appId, 'users', userId, 'expenses');
             
-            // NO COMPLEX QUERIES: Fetch everything, sort in memory
             unsubscribeSnap = onSnapshot(expensesRef, (snapshot) => {
                 expenses = {}; 
                 let tempExps = [];
@@ -286,7 +295,6 @@
                     tempExps.push({ id: document.id, ...document.data() });
                 });
 
-                // In-memory sort safely handling string dates, Firebase Timestamps, and missing values
                 tempExps.sort((a, b) => {
                     const getMs = (val) => {
                         if (!val) return 0;
@@ -305,7 +313,7 @@
                     expenses[data.date].push({ id: data.id, category: data.category, amount: data.amount });
                 });
                 
-                document.getElementById('loading-state')?.remove(); // Remove loading state once data arrives
+                document.getElementById('loading-state')?.remove();
                 renderCalendar();
                 updateSelectedDayUI();
                 updateDailyExpensesUI();
@@ -325,7 +333,6 @@
                 console.error("Incomes Snapshot Error:", error);
             });
 
-            // Load Custom Categories
             const categoriesRef = doc(db, 'artifacts', appId, 'users', userId, 'preferences', 'categories');
             unsubscribeCategoriesSnap = onSnapshot(categoriesRef, (docSnap) => {
                 if (docSnap.exists() && docSnap.data().list) {
@@ -388,8 +395,8 @@
 
         window.addExpense = async function() {
             if (!currentUser) {
-                alert("Authentication required. Please check the error at the bottom of the summary or ensure Anonymous Sign-In is enabled in Firebase.");
-                return; // Guard clause
+                window.showToast("Authentication required. Please check login state.", true);
+                return;
             }
             
             const categorySelect = document.getElementById('expense-category');
@@ -416,14 +423,13 @@
                     date: selectedDateStr,
                     category: category,
                     amount: amount,
-                    createdAt: new Date().toISOString() // Save ISO string for easy in-memory sorting
+                    createdAt: new Date().toISOString()
                 });
 
                 amountInput.value = '';
                 customInput.value = '';
                 customInput.classList.add('hidden');
                 
-                // Reset category select safely
                 if (userCategories.length > 0) {
                     categorySelect.value = userCategories;
                 }
@@ -433,7 +439,7 @@
         };
 
         window.deleteCategoryExpenses = async function(category) {
-            if (!currentUser) return; // Guard clause
+            if (!currentUser) return;
             
             const dailyExps = expenses[selectedDateStr] || [];
             const expsToDelete = dailyExps.filter(exp => exp.category === category);
@@ -463,7 +469,6 @@
             if (e.key === 'Enter') window.addExpense();
         });
 
-        // Global click listener to re-blur remaining balance when clicking anywhere else
         document.addEventListener('click', function(e) {
             const remainingEl = document.getElementById('remaining-balance');
             if (remainingEl && e.target !== remainingEl) {
@@ -558,7 +563,6 @@
             
             if (dailyExps.length === 0) return; 
 
-            // Group expenses by category
             const categoryGroups = {};
             dailyExps.forEach((exp) => {
                 if (!categoryGroups[exp.category]) {
@@ -573,7 +577,6 @@
                 const li = document.createElement('li');
                 li.className = "flex flex-col bg-gray-50 rounded-md border border-gray-100 overflow-hidden text-sm";
                 
-                // Add a small badge if there are multiple entries for this category today
                 const countBadge = group.items.length > 1 ? `<span class="text-[10px] text-gray-400 bg-gray-200 px-1.5 py-0.5 rounded-md ml-1.5">x${group.items.length}</span>` : '';
 
                 const uniqueId = `cat-details-${catIndex}`;
@@ -622,7 +625,6 @@
         function updateMonthlySummaryUI() {
             const listContainer = document.getElementById('category-list');
             
-            // Only clear it if we have finished loading to prevent removing the loading text early
             if(currentUser) listContainer.innerHTML = ''; 
 
             let monthlyTotal = 0;
@@ -657,7 +659,6 @@
                 const isNegative = remaining < 0;
                 remainingEl.innerText = (isNegative ? '-' : '') + formatCurrency(Math.abs(remaining));
                 
-                // Force blur to reset whenever the UI updates (like adding an expense)
                 if (isNegative) {
                     remainingEl.className = `text-xl font-bold text-[#ff3b30] blur-[5px] transition-all duration-300 cursor-pointer select-none`;
                 } else {
@@ -674,22 +675,45 @@
 
             categories.sort((a, b) => categoryTotals[b] - categoryTotals[a]);
 
-            categories.forEach(cat => {
+            const colors = ['#ff3b30', '#ff9500', '#ffcc00', '#34c759', '#5ac8fa', '#007aff', '#5856d6', '#ff2d55', '#a2845e', '#8e8e93'];
+            let conicGradientParts = [];
+            let currentAngle = 0;
+            let legendHtml = '<div class="space-y-3 mt-4">';
+
+            categories.forEach((cat, index) => {
                 const total = categoryTotals[cat];
-                const percentage = monthlyTotal > 0 ? ((total / monthlyTotal) * 100).toFixed(0) : 0;
+                const percentage = monthlyTotal > 0 ? (total / monthlyTotal) * 100 : 0;
+                const displayPercentage = percentage.toFixed(0);
+                const color = colors[index % colors.length];
                 
-                const itemDiv = document.createElement('div');
-                itemDiv.className = "flex justify-between items-center text-sm";
-                itemDiv.innerHTML = `
-                    <div class="flex items-center space-x-2 flex-1">
-                        <div class="w-2 h-2 rounded-full bg-gray-300"></div>
-                        <span class="text-gray-700 font-medium">${cat}</span>
-                        <span class="text-xs text-gray-400">${percentage}%</span>
+                const nextAngle = currentAngle + percentage;
+                conicGradientParts.push(`${color} ${currentAngle}% ${nextAngle}%`);
+                currentAngle = nextAngle;
+
+                legendHtml += `
+                    <div class="flex justify-between items-center text-sm hover:bg-gray-50 p-1 -mx-1 rounded transition-colors">
+                        <div class="flex items-center space-x-2 flex-1">
+                            <div class="w-2.5 h-2.5 rounded-full shadow-sm" style="background-color: ${color};"></div>
+                            <span class="text-gray-700 font-medium">${cat}</span>
+                            <span class="text-xs text-gray-400">${displayPercentage}%</span>
+                        </div>
+                        <div class="font-semibold text-gray-800">${formatCurrency(total)}</div>
                     </div>
-                    <div class="font-semibold text-gray-800">${formatCurrency(total)}</div>
                 `;
-                listContainer.appendChild(itemDiv);
             });
+            
+            legendHtml += '</div>';
+            const gradientString = conicGradientParts.join(', ');
+
+            const chartHtml = `
+                <div class="flex justify-center mb-1 mt-3">
+                    <div class="w-28 h-28 rounded-full relative flex items-center justify-center" style="background: conic-gradient(${gradientString});">
+                        <div class="w-20 h-20 bg-white rounded-full absolute shadow-sm"></div>
+                    </div>
+                </div>
+            `;
+
+            listContainer.innerHTML = chartHtml + legendHtml;
         }
 
         window.exportToCSV = function() {
@@ -709,7 +733,7 @@
             }
 
             if (!hasData) {
-                alert(`No data to export for ${monthNames[currentMonth]} ${currentYear}`);
+                window.showToast(`No data to export for ${monthNames[currentMonth]} ${currentYear}`, true);
                 return;
             }
 
@@ -722,7 +746,6 @@
             document.body.removeChild(link);
         };
 
-        // Category Management Logic
         window.openCategoryManager = function() {
             document.getElementById('category-modal').classList.remove('hidden');
             renderCategoryManagerList();
@@ -762,7 +785,6 @@
             const updatedList = [...userCategories, newCat].sort((a, b) => a.localeCompare(b));
             const categoriesRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'preferences', 'categories');
             
-            // Disable button briefly to prevent double clicks
             const btn = event.currentTarget;
             btn.disabled = true;
             btn.innerHTML = '...';
@@ -806,7 +828,6 @@
             });
         }
 
-        // Add event listener for Enter key in category manager input
         document.getElementById('new-category-input').addEventListener('keypress', function (e) {
             if (e.key === 'Enter') window.handleAddCategory();
         });
