@@ -693,20 +693,26 @@
                 const displayPercentage = percentage.toFixed(0);
                 const color = colors[index % colors.length];
                 
-                // Scale height up to a max of 85% of the container to leave room for the percentage above
-                const barHeight = maxCategoryAmount > 0 ? (total / maxCategoryAmount) * 85 : 0;
+                // Strict height calculation for proportional bars (max 80% to leave room for top percentage label)
+                // Min height of 5% just so the bar remains visible and clickable
+                const barHeight = maxCategoryAmount > 0 ? Math.max((total / maxCategoryAmount) * 80, 5) : 0;
+                
+                // Truncate long category names
+                const shortCat = cat.length > 10 ? cat.substring(0, 8) + '...' : cat;
 
                 barsHtml += `
-                    <div class="flex flex-col justify-end items-center flex-1 h-full min-w-[16px] max-w-[48px] group">
+                    <div class="flex flex-col justify-end items-center flex-1 h-full min-w-[16px] max-w-[48px] group cursor-pointer" onclick="window.showToast('Full Title: ${cat.replace(/'/g, "\\'")} | ${formatCurrency(total)} (${displayPercentage}%)')">
                         <div class="text-[11px] font-bold text-gray-500 mb-1.5 transition-all duration-300 group-hover:-translate-y-1 group-hover:text-gray-800 z-20">${displayPercentage}%</div>
-                        <div class="w-full rounded-t-md transition-all duration-300 group-hover:-translate-y-1 relative flex flex-col items-center justify-end shadow-sm border border-black/5" style="height: ${barHeight}%; min-height: 90px; background-color: ${color};">
+                        
+                        <div class="w-full rounded-t-md transition-all duration-300 group-hover:-translate-y-1 relative flex flex-col items-center justify-end shadow-sm border border-black/5 overflow-hidden" style="height: ${barHeight}%; background-color: ${color};">
                             <div class="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent pointer-events-none rounded-t-md"></div>
                             
-                            <!-- Vertical text container (overflow-visible to prevent text truncation) -->
-                            <div class="z-10 text-white flex pt-2 pb-3 h-full w-full justify-start items-center overflow-visible" style="writing-mode: vertical-rl; transform: rotate(180deg);">
-                                <span class="text-[11px] font-medium whitespace-nowrap leading-none tracking-wide" style="text-shadow: 0px 1px 3px rgba(0,0,0,0.8);">${cat}</span>
+                            <!-- Vertical text container (overflow-hidden to keep strict bar heights) -->
+                            <div class="z-10 text-white flex pt-2 pb-3 h-full w-full justify-start items-center overflow-hidden" style="writing-mode: vertical-rl; transform: rotate(180deg);">
+                                <span class="text-[11px] font-medium whitespace-nowrap leading-none tracking-wide" style="text-shadow: 0px 1px 3px rgba(0,0,0,0.8);">${shortCat}</span>
                             </div>
                         </div>
+                        
                         <div class="mt-2.5 text-[10px] font-bold text-gray-600 whitespace-nowrap tracking-tighter transition-all duration-300 group-hover:text-gray-900">${formatCurrency(total)}</div>
                     </div>
                 `;
