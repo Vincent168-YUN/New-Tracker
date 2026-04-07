@@ -473,11 +473,46 @@
             if (e.key === 'Enter') window.addExpense();
         });
 
+        window.expandBar = function(event, index) {
+            event.stopPropagation();
+            
+            // Reset all bars first
+            const allTexts = document.querySelectorAll('[id^="bar-text-"]');
+            allTexts.forEach(span => {
+                span.innerText = span.getAttribute('data-short');
+                const container = span.closest('[id^="bar-container-"]');
+                if (container) {
+                    container.classList.remove('overflow-visible', 'z-50');
+                    container.classList.add('overflow-hidden', 'z-10');
+                }
+            });
+            
+            // Expand the clicked target
+            const clickedContainer = document.getElementById(`bar-container-${index}`);
+            const clickedText = document.getElementById(`bar-text-${index}`);
+            if(clickedContainer && clickedText) {
+                clickedContainer.classList.remove('overflow-hidden', 'z-10');
+                clickedContainer.classList.add('overflow-visible', 'z-50');
+                clickedText.innerText = clickedText.getAttribute('data-full');
+            }
+        };
+
         document.addEventListener('click', function(e) {
             const remainingEl = document.getElementById('remaining-balance');
             if (remainingEl && e.target !== remainingEl) {
                 remainingEl.classList.add('blur-[5px]');
             }
+            
+            // Reset any expanded chart bars when clicking elsewhere
+            const allTexts = document.querySelectorAll('[id^="bar-text-"]');
+            allTexts.forEach(span => {
+                span.innerText = span.getAttribute('data-short');
+                const container = span.closest('[id^="bar-container-"]');
+                if (container) {
+                    container.classList.remove('overflow-visible', 'z-50');
+                    container.classList.add('overflow-hidden', 'z-10');
+                }
+            });
         });
 
         window.updateIncome = async function() {
@@ -701,15 +736,15 @@
                 const shortCat = cat.length > 10 ? cat.substring(0, 8) + '...' : cat;
 
                 barsHtml += `
-                    <div class="flex flex-col justify-end items-center flex-1 h-full min-w-[16px] max-w-[48px] group cursor-pointer" onclick="window.showToast('Full Title: ${cat.replace(/'/g, "\\'")} | ${formatCurrency(total)} (${displayPercentage}%)')">
+                    <div class="flex flex-col justify-end items-center flex-1 h-full min-w-[16px] max-w-[48px] group cursor-pointer" onclick="window.expandBar(event, ${index})">
                         <div class="text-[11px] font-bold text-gray-500 mb-1.5 transition-all duration-300 group-hover:-translate-y-1 group-hover:text-gray-800 z-20">${displayPercentage}%</div>
                         
-                        <div class="w-full rounded-t-md transition-all duration-300 group-hover:-translate-y-1 relative flex flex-col items-center justify-end shadow-sm border border-black/5 overflow-hidden" style="height: ${barHeight}%; background-color: ${color};">
+                        <div id="bar-container-${index}" class="w-full rounded-t-md transition-all duration-300 group-hover:-translate-y-1 relative flex flex-col items-center justify-end shadow-sm border border-black/5 overflow-hidden z-10" style="height: ${barHeight}%; background-color: ${color};">
                             <div class="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent pointer-events-none rounded-t-md"></div>
                             
-                            <!-- Vertical text container (overflow-hidden to keep strict bar heights) -->
-                            <div class="z-10 text-white flex pt-2 pb-3 h-full w-full justify-start items-center overflow-hidden" style="writing-mode: vertical-rl; transform: rotate(180deg);">
-                                <span class="text-[11px] font-medium whitespace-nowrap leading-none tracking-wide" style="text-shadow: 0px 1px 3px rgba(0,0,0,0.8);">${shortCat}</span>
+                            <!-- Vertical text container -->
+                            <div class="z-10 text-white flex pt-2 pb-3 h-full w-full justify-start items-center overflow-visible" style="writing-mode: vertical-rl; transform: rotate(180deg);">
+                                <span id="bar-text-${index}" data-short="${shortCat.replace(/"/g, '&quot;')}" data-full="${cat.replace(/"/g, '&quot;')}" class="text-[11px] font-medium whitespace-nowrap leading-none tracking-wide transition-all" style="text-shadow: 0px 1px 3px rgba(0,0,0,0.8);">${shortCat}</span>
                             </div>
                         </div>
                         
