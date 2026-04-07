@@ -12,6 +12,10 @@
         ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
         
+        /* Hide scrollbar specifically for the minimalist bar chart */
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
         /* Hide number input spinners */
         input[type=number]::-webkit-inner-spin-button, 
         input[type=number]::-webkit-outer-spin-button { 
@@ -675,10 +679,13 @@
 
             categories.sort((a, b) => categoryTotals[b] - categoryTotals[a]);
 
-            const colors = ['#ff3b30', '#ff9500', '#ffcc00', '#34c759', '#5ac8fa', '#007aff', '#5856d6', '#ff2d55', '#a2845e', '#8e8e93'];
-            let conicGradientParts = [];
-            let currentAngle = 0;
-            let legendHtml = '<div class="space-y-3 mt-4">';
+            // Minimalist pastel colors resembling the requested style
+            const colors = ['#f87171', '#fbbf24', '#a3e635', '#60a5fa', '#a78bfa', '#f472b6', '#34d399', '#38bdf8', '#818cf8', '#c084fc'];
+            
+            // Find the maximum category total to scale the bars properly
+            const maxCategoryAmount = Math.max(...categories.map(c => categoryTotals[c]));
+            
+            let barsHtml = '';
 
             categories.forEach((cat, index) => {
                 const total = categoryTotals[cat];
@@ -686,34 +693,45 @@
                 const displayPercentage = percentage.toFixed(0);
                 const color = colors[index % colors.length];
                 
-                const nextAngle = currentAngle + percentage;
-                conicGradientParts.push(`${color} ${currentAngle}% ${nextAngle}%`);
-                currentAngle = nextAngle;
+                // Scale height up to a max of 75% of the container to leave room for the labels above
+                const barHeight = maxCategoryAmount > 0 ? (total / maxCategoryAmount) * 75 : 0;
 
-                legendHtml += `
-                    <div class="flex justify-between items-center text-sm hover:bg-gray-50 p-1 -mx-1 rounded transition-colors">
-                        <div class="flex items-center space-x-2 flex-1">
-                            <div class="w-2.5 h-2.5 rounded-full shadow-sm" style="background-color: ${color};"></div>
-                            <span class="text-gray-700 font-medium">${cat}</span>
-                            <span class="text-xs text-gray-400">${displayPercentage}%</span>
+                barsHtml += `
+                    <div class="flex flex-col justify-end items-center min-w-[70px] h-full flex-shrink-0 group">
+                        <div class="text-center mb-1.5 leading-tight w-full px-1">
+                            <div class="text-[10px] text-gray-800 font-medium truncate" title="${cat}">${cat}</div>
+                            <div class="text-[10px] text-gray-900 font-bold tracking-tighter">${formatCurrency(total)}</div>
+                            <div class="text-[10px] text-gray-500">${displayPercentage}%</div>
                         </div>
-                        <div class="font-semibold text-gray-800">${formatCurrency(total)}</div>
+                        <div class="w-8 rounded-t-sm transition-all duration-300 opacity-90 group-hover:opacity-100 group-hover:-translate-y-0.5" style="height: ${barHeight}%; background-color: ${color};"></div>
                     </div>
                 `;
             });
             
-            legendHtml += '</div>';
-            const gradientString = conicGradientParts.join(', ');
-
             const chartHtml = `
-                <div class="flex justify-center mb-1 mt-3">
-                    <div class="w-28 h-28 rounded-full relative flex items-center justify-center" style="background: conic-gradient(${gradientString});">
-                        <div class="w-20 h-20 bg-white rounded-full absolute shadow-sm"></div>
+                <div class="relative mt-6 mb-2 mx-2">
+                    <!-- Y Axis Arrow -->
+                    <div class="absolute -top-3 -left-[5.5px] text-gray-800 z-10">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>
+                    </div>
+                    <!-- X Axis Arrow -->
+                    <div class="absolute -right-3 -bottom-[5.5px] text-gray-800 rotate-90 z-10">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>
+                    </div>
+                    
+                    <!-- Axes Frame -->
+                    <div class="border-l-2 border-b-2 border-gray-800 w-full h-52 relative">
+                        <!-- Scrollable Bars Container -->
+                        <div class="absolute inset-0 flex items-end overflow-x-auto hide-scrollbar pl-1">
+                            <div class="flex h-full items-end pt-12 px-1 gap-1 min-w-max">
+                                ${barsHtml}
+                            </div>
+                        </div>
                     </div>
                 </div>
             `;
 
-            listContainer.innerHTML = chartHtml + legendHtml;
+            listContainer.innerHTML = chartHtml;
         }
 
         window.exportToCSV = function() {
