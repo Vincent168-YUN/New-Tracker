@@ -179,15 +179,17 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const appId = (typeof __app_id !== 'undefined' && __app_id) ? __app_id : 'default-app-id';
+        
         let currentUser = null;
+        let isDataLoaded = false;
+        
         let unsubscribeSnap = null;
         let unsubscribeIncomesSnap = null;
-        // =========================================================================
+        let unsubscribeCategoriesSnap = null;
 
         const defaultCategories = ["Food/Drinks", "Parking", "Grocery", "Event", "Beer", "Online shopping", "Vehicle Care", "Data plan", "Gift", "Fitness", "Family", "Contact lens", "Hair cut", "Coffee bean and Milk", "Travel", "Other"].sort((a, b) => a.localeCompare(b));
         let userCategories = [...defaultCategories];
-        let unsubscribeCategoriesSnap = null;
 
         let expenses = {}; 
         let monthlyIncomes = {};
@@ -199,7 +201,7 @@
         const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
         const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
-        // Toast Notification System to replace alerts
+        // Toast Notification System
         window.showToast = function(message, isError = false) {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
@@ -225,11 +227,7 @@
                 console.error("Authentication Error:", error);
                 const loadingState = document.getElementById('loading-state');
                 if (loadingState) {
-                    if (error.code === 'auth/operation-not-allowed') {
-                        loadingState.innerHTML = `<span class="text-red-500 font-bold">Error:</span> Anonymous Sign-in is disabled in your Firebase Console.`;
-                    } else {
-                        loadingState.innerText = "Failed to authenticate: " + error.message;
-                    }
+                    loadingState.innerHTML = `<span class="text-red-500 font-bold">Auth Error:</span> ${error.message}`;
                 }
             }
         };
@@ -242,6 +240,7 @@
                 autoDeleteOldData(user.uid);
                 loadExpenses(user.uid);
             } else {
+                isDataLoaded = false;
                 expenses = {};
                 monthlyIncomes = {};
                 userCategories = [...defaultCategories];
@@ -250,7 +249,11 @@
                 updateSelectedDayUI();
                 updateDailyExpensesUI();
                 updateMonthlySummaryUI();
-                document.getElementById('loading-state').innerText = "Please log in.";
+                
+                const listContainer = document.getElementById('category-list');
+                if (listContainer) {
+                    listContainer.innerHTML = '<div class="text-sm text-center text-gray-400 py-4 italic">Please log in to view expenses.</div>';
+                }
             }
         });
 
@@ -264,19 +267,19 @@
                 const expensesRef = collection(db, 'artifacts', appId, 'users', userId, 'expenses');
                 const expSnapshot = await getDocs(expensesRef);
                 
-                expSnapshot.forEach((document) => {
-                    const data = document.data();
+                expSnapshot.forEach((docSnap) => {
+                    const data = docSnap.data();
                     if (data.date && data.date < cutoffDateStr) {
-                        deleteDoc(doc(db, 'artifacts', appId, 'users', userId, 'expenses', document.id));
+                        deleteDoc(doc(db, 'artifacts', appId, 'users', userId, 'expenses', docSnap.id));
                     }
                 });
 
                 const incomesRef = collection(db, 'artifacts', appId, 'users', userId, 'incomes');
                 const incSnapshot = await getDocs(incomesRef);
                 
-                incSnapshot.forEach((document) => {
-                    if (document.id < cutoffMonthStr) {
-                        deleteDoc(doc(db, 'artifacts', appId, 'users', userId, 'incomes', document.id));
+                incSnapshot.forEach((docSnap) => {
+                    if (docSnap.id < cutoffMonthStr) {
+                        deleteDoc(doc(db, 'artifacts', appId, 'users', userId, 'incomes', docSnap.id));
                     }
                 });
             } catch (error) {
@@ -295,8 +298,8 @@
                 expenses = {}; 
                 let tempExps = [];
                 
-                snapshot.forEach((document) => {
-                    tempExps.push({ id: document.id, ...document.data() });
+                snapshot.forEach((docSnap) => {
+                    tempExps.push({ id: docSnap.id, ...docSnap.data() });
                 });
 
                 tempExps.sort((a, b) => {
@@ -317,20 +320,21 @@
                     expenses[data.date].push({ id: data.id, category: data.category, amount: data.amount });
                 });
                 
-                document.getElementById('loading-state')?.remove();
+                isDataLoaded = true;
                 renderCalendar();
                 updateSelectedDayUI();
                 updateDailyExpensesUI();
                 updateMonthlySummaryUI();
             }, (error) => {
                 console.error("Snapshot Error:", error);
+                window.showToast("Failed to load data: " + error.message, true);
             });
 
             const incomesRef = collection(db, 'artifacts', appId, 'users', userId, 'incomes');
             unsubscribeIncomesSnap = onSnapshot(incomesRef, (snapshot) => {
                 monthlyIncomes = {};
-                snapshot.forEach((doc) => {
-                    monthlyIncomes[doc.id] = doc.data().amount || 0;
+                snapshot.forEach((docSnap) => {
+                    monthlyIncomes[docSnap.id] = docSnap.data().amount || 0;
                 });
                 updateMonthlySummaryUI();
             }, (error) => {
@@ -434,11 +438,13 @@
                 customInput.value = '';
                 customInput.classList.add('hidden');
                 
+                // Reset to valid option (Fix applied here)
                 if (userCategories.length > 0) {
-                    categorySelect.value = userCategories;
+                    categorySelect.value = userCategories; 
                 }
             } catch (error) {
                 console.error("Error adding document: ", error);
+                window.showToast("Error adding expense.", true);
             }
         };
 
@@ -476,7 +482,6 @@
         window.expandBar = function(event, index) {
             event.stopPropagation();
             
-            // Reset all bars first
             const allTexts = document.querySelectorAll('[id^="bar-text-"]');
             allTexts.forEach(span => {
                 span.innerText = span.getAttribute('data-short');
@@ -487,7 +492,6 @@
                 }
             });
             
-            // Expand the clicked target
             const clickedContainer = document.getElementById(`bar-container-${index}`);
             const clickedText = document.getElementById(`bar-text-${index}`);
             if(clickedContainer && clickedText) {
@@ -503,7 +507,6 @@
                 remainingEl.classList.add('blur-[5px]');
             }
             
-            // Reset any expanded chart bars when clicking elsewhere
             const allTexts = document.querySelectorAll('[id^="bar-text-"]');
             allTexts.forEach(span => {
                 span.innerText = span.getAttribute('data-short');
@@ -664,7 +667,13 @@
         function updateMonthlySummaryUI() {
             const listContainer = document.getElementById('category-list');
             
-            if(currentUser) listContainer.innerHTML = ''; 
+            // Wait for data load before overwriting loading UI with "Empty Data" template
+            if (!isDataLoaded && currentUser) {
+                listContainer.innerHTML = '<div class="text-sm text-center text-gray-400 py-4 italic">Loading cloud database...</div>';
+                return;
+            } else if (currentUser) {
+                listContainer.innerHTML = ''; 
+            }
 
             let monthlyTotal = 0;
             const categoryTotals = {};
@@ -714,10 +723,7 @@
 
             categories.sort((a, b) => categoryTotals[b] - categoryTotals[a]);
 
-            // Modern, vibrant colors for better white text contrast
             const colors = ['#ef4444', '#f59e0b', '#84cc16', '#3b82f6', '#8b5cf6', '#ec4899', '#10b981', '#0ea5e9', '#6366f1', '#d946ef'];
-            
-            // Find the maximum category total to scale the bars properly
             const maxCategoryAmount = Math.max(...categories.map(c => categoryTotals[c]));
             
             let barsHtml = '';
@@ -728,11 +734,7 @@
                 const displayPercentage = percentage.toFixed(0);
                 const color = colors[index % colors.length];
                 
-                // Strict height calculation for proportional bars (max 80% to leave room for top percentage label)
-                // Min height of 5% just so the bar remains visible and clickable
                 const barHeight = maxCategoryAmount > 0 ? Math.max((total / maxCategoryAmount) * 80, 5) : 0;
-                
-                // Truncate long category names
                 const shortCat = cat.length > 10 ? cat.substring(0, 8) + '...' : cat;
 
                 barsHtml += `
@@ -741,8 +743,6 @@
                         
                         <div id="bar-container-${index}" class="w-full rounded-t-md transition-all duration-300 group-hover:-translate-y-1 relative flex flex-col items-center justify-end shadow-sm border border-black/5 overflow-hidden z-10" style="height: ${barHeight}%; background-color: ${color};">
                             <div class="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent pointer-events-none rounded-t-md"></div>
-                            
-                            <!-- Vertical text container -->
                             <div class="z-10 text-white flex pt-2 pb-3 h-full w-full justify-start items-center overflow-visible" style="writing-mode: vertical-rl; transform: rotate(180deg);">
                                 <span id="bar-text-${index}" data-short="${shortCat.replace(/"/g, '&quot;')}" data-full="${cat.replace(/"/g, '&quot;')}" class="text-[11px] font-medium whitespace-nowrap leading-none tracking-wide transition-all" style="text-shadow: 0px 1px 3px rgba(0,0,0,0.8);">${shortCat}</span>
                             </div>
@@ -753,18 +753,18 @@
                 `;
             });
             
-            const chartHtml = `
-                <div class="w-full h-96 mt-6 mb-2 relative">
-                    <!-- Squeezed Bars Container -->
-                    <div class="absolute inset-0 flex items-end w-full">
-                        <div class="flex h-full w-full items-end justify-around gap-1 pb-2 px-1">
-                            ${barsHtml}
+            if (currentUser) {
+                const chartHtml = `
+                    <div class="w-full h-96 mt-6 mb-2 relative">
+                        <div class="absolute inset-0 flex items-end w-full">
+                            <div class="flex h-full w-full items-end justify-around gap-1 pb-2 px-1">
+                                ${barsHtml}
+                            </div>
                         </div>
                     </div>
-                </div>
-            `;
-
-            listContainer.innerHTML = chartHtml;
+                `;
+                listContainer.innerHTML = chartHtml;
+            }
         }
 
         window.exportToCSV = function() {
@@ -818,6 +818,7 @@
                 select.appendChild(opt);
             });
             
+            // Fix applied here: Use single valid element rather than assigning the array mapping
             if (userCategories.includes(currentVal)) {
                 select.value = currentVal;
             } else if (userCategories.length > 0) {
