@@ -12,6 +12,10 @@
         ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
         
+        /* Hide scrollbar specifically for the minimalist bar chart */
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
         /* Hide number input spinners */
         input[type=number]::-webkit-inner-spin-button, 
         input[type=number]::-webkit-outer-spin-button { 
@@ -121,7 +125,7 @@
                 </div>
             </div>
             
-            <div id="category-list" class="space-y-3 max-h-48 overflow-y-auto pr-2">
+            <div id="category-list" class="space-y-3 max-h-[500px] overflow-y-auto pr-2 pb-4">
                 <div class="text-sm text-center text-gray-400 py-4 italic" id="loading-state">Loading cloud database...</div>
             </div>
         </div>
@@ -146,6 +150,9 @@
         </div>
     </div>
 
+    <!-- Custom Toast Container -->
+    <div id="toast-container" class="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50 flex flex-col space-y-2 pointer-events-none"></div>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
@@ -158,7 +165,6 @@
         if (typeof __firebase_config !== 'undefined') {
             firebaseConfig = JSON.parse(__firebase_config);
         } else {
-            // Fallback to your original config if testing locally outside the environment
             console.warn("Using local fallback Firebase configuration.");
             firebaseConfig = {
                 apiKey: "AIzaSyBoUPFJZn5vnREHkc3PRjwAoooMGy6Vqgk",
@@ -192,6 +198,20 @@
 
         const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
         const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+        // Toast Notification System to replace alerts
+        window.showToast = function(message, isError = false) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `px-4 py-3 rounded-lg shadow-xl text-sm font-medium transition-all duration-300 ${isError ? 'bg-red-500 text-white' : 'bg-gray-800 text-white'}`;
+            toast.innerText = message;
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        };
 
         // Initialization: Auth Before Queries
         const initAuth = async () => {
@@ -235,31 +255,26 @@
         });
 
         async function autoDeleteOldData(userId) {
-            // Calculate the date exactly 12 months ago
             const oneYearAgo = new Date();
             oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-            const cutoffDateStr = formatDate(oneYearAgo); // e.g. "2025-04-04"
-            const cutoffMonthStr = cutoffDateStr.substring(0, 7); // e.g. "2025-04"
+            const cutoffDateStr = formatDate(oneYearAgo); 
+            const cutoffMonthStr = cutoffDateStr.substring(0, 7); 
 
             try {
-                // 1. Fetch and delete expenses older than 1 year
                 const expensesRef = collection(db, 'artifacts', appId, 'users', userId, 'expenses');
                 const expSnapshot = await getDocs(expensesRef);
                 
                 expSnapshot.forEach((document) => {
                     const data = document.data();
-                    // String comparison works perfectly for YYYY-MM-DD formats
                     if (data.date && data.date < cutoffDateStr) {
                         deleteDoc(doc(db, 'artifacts', appId, 'users', userId, 'expenses', document.id));
                     }
                 });
 
-                // 2. Fetch and delete monthly income limits older than 1 year
                 const incomesRef = collection(db, 'artifacts', appId, 'users', userId, 'incomes');
                 const incSnapshot = await getDocs(incomesRef);
                 
                 incSnapshot.forEach((document) => {
-                    // Income document IDs are formatted as "YYYY-MM"
                     if (document.id < cutoffMonthStr) {
                         deleteDoc(doc(db, 'artifacts', appId, 'users', userId, 'incomes', document.id));
                     }
@@ -274,10 +289,8 @@
             if (unsubscribeIncomesSnap) unsubscribeIncomesSnap();
             if (unsubscribeCategoriesSnap) unsubscribeCategoriesSnap();
             
-            // STRICT PATH: artifacts/{appId}/users/{userId}/{collectionName}
             const expensesRef = collection(db, 'artifacts', appId, 'users', userId, 'expenses');
             
-            // NO COMPLEX QUERIES: Fetch everything, sort in memory
             unsubscribeSnap = onSnapshot(expensesRef, (snapshot) => {
                 expenses = {}; 
                 let tempExps = [];
@@ -286,7 +299,6 @@
                     tempExps.push({ id: document.id, ...document.data() });
                 });
 
-                // In-memory sort safely handling string dates, Firebase Timestamps, and missing values
                 tempExps.sort((a, b) => {
                     const getMs = (val) => {
                         if (!val) return 0;
@@ -305,7 +317,7 @@
                     expenses[data.date].push({ id: data.id, category: data.category, amount: data.amount });
                 });
                 
-                document.getElementById('loading-state')?.remove(); // Remove loading state once data arrives
+                document.getElementById('loading-state')?.remove();
                 renderCalendar();
                 updateSelectedDayUI();
                 updateDailyExpensesUI();
@@ -325,7 +337,6 @@
                 console.error("Incomes Snapshot Error:", error);
             });
 
-            // Load Custom Categories
             const categoriesRef = doc(db, 'artifacts', appId, 'users', userId, 'preferences', 'categories');
             unsubscribeCategoriesSnap = onSnapshot(categoriesRef, (docSnap) => {
                 if (docSnap.exists() && docSnap.data().list) {
@@ -388,8 +399,8 @@
 
         window.addExpense = async function() {
             if (!currentUser) {
-                alert("Authentication required. Please check the error at the bottom of the summary or ensure Anonymous Sign-In is enabled in Firebase.");
-                return; // Guard clause
+                window.showToast("Authentication required. Please check login state.", true);
+                return;
             }
             
             const categorySelect = document.getElementById('expense-category');
@@ -416,14 +427,13 @@
                     date: selectedDateStr,
                     category: category,
                     amount: amount,
-                    createdAt: new Date().toISOString() // Save ISO string for easy in-memory sorting
+                    createdAt: new Date().toISOString()
                 });
 
                 amountInput.value = '';
                 customInput.value = '';
                 customInput.classList.add('hidden');
                 
-                // Reset category select safely
                 if (userCategories.length > 0) {
                     categorySelect.value = userCategories;
                 }
@@ -433,7 +443,7 @@
         };
 
         window.deleteCategoryExpenses = async function(category) {
-            if (!currentUser) return; // Guard clause
+            if (!currentUser) return;
             
             const dailyExps = expenses[selectedDateStr] || [];
             const expsToDelete = dailyExps.filter(exp => exp.category === category);
@@ -463,12 +473,46 @@
             if (e.key === 'Enter') window.addExpense();
         });
 
-        // Global click listener to re-blur remaining balance when clicking anywhere else
+        window.expandBar = function(event, index) {
+            event.stopPropagation();
+            
+            // Reset all bars first
+            const allTexts = document.querySelectorAll('[id^="bar-text-"]');
+            allTexts.forEach(span => {
+                span.innerText = span.getAttribute('data-short');
+                const container = span.closest('[id^="bar-container-"]');
+                if (container) {
+                    container.classList.remove('overflow-visible', 'z-50');
+                    container.classList.add('overflow-hidden', 'z-10');
+                }
+            });
+            
+            // Expand the clicked target
+            const clickedContainer = document.getElementById(`bar-container-${index}`);
+            const clickedText = document.getElementById(`bar-text-${index}`);
+            if(clickedContainer && clickedText) {
+                clickedContainer.classList.remove('overflow-hidden', 'z-10');
+                clickedContainer.classList.add('overflow-visible', 'z-50');
+                clickedText.innerText = clickedText.getAttribute('data-full');
+            }
+        };
+
         document.addEventListener('click', function(e) {
             const remainingEl = document.getElementById('remaining-balance');
             if (remainingEl && e.target !== remainingEl) {
                 remainingEl.classList.add('blur-[5px]');
             }
+            
+            // Reset any expanded chart bars when clicking elsewhere
+            const allTexts = document.querySelectorAll('[id^="bar-text-"]');
+            allTexts.forEach(span => {
+                span.innerText = span.getAttribute('data-short');
+                const container = span.closest('[id^="bar-container-"]');
+                if (container) {
+                    container.classList.remove('overflow-visible', 'z-50');
+                    container.classList.add('overflow-hidden', 'z-10');
+                }
+            });
         });
 
         window.updateIncome = async function() {
@@ -558,7 +602,6 @@
             
             if (dailyExps.length === 0) return; 
 
-            // Group expenses by category
             const categoryGroups = {};
             dailyExps.forEach((exp) => {
                 if (!categoryGroups[exp.category]) {
@@ -573,7 +616,6 @@
                 const li = document.createElement('li');
                 li.className = "flex flex-col bg-gray-50 rounded-md border border-gray-100 overflow-hidden text-sm";
                 
-                // Add a small badge if there are multiple entries for this category today
                 const countBadge = group.items.length > 1 ? `<span class="text-[10px] text-gray-400 bg-gray-200 px-1.5 py-0.5 rounded-md ml-1.5">x${group.items.length}</span>` : '';
 
                 const uniqueId = `cat-details-${catIndex}`;
@@ -622,7 +664,6 @@
         function updateMonthlySummaryUI() {
             const listContainer = document.getElementById('category-list');
             
-            // Only clear it if we have finished loading to prevent removing the loading text early
             if(currentUser) listContainer.innerHTML = ''; 
 
             let monthlyTotal = 0;
@@ -657,7 +698,6 @@
                 const isNegative = remaining < 0;
                 remainingEl.innerText = (isNegative ? '-' : '') + formatCurrency(Math.abs(remaining));
                 
-                // Force blur to reset whenever the UI updates (like adding an expense)
                 if (isNegative) {
                     remainingEl.className = `text-xl font-bold text-[#ff3b30] blur-[5px] transition-all duration-300 cursor-pointer select-none`;
                 } else {
@@ -674,22 +714,57 @@
 
             categories.sort((a, b) => categoryTotals[b] - categoryTotals[a]);
 
-            categories.forEach(cat => {
+            // Modern, vibrant colors for better white text contrast
+            const colors = ['#ef4444', '#f59e0b', '#84cc16', '#3b82f6', '#8b5cf6', '#ec4899', '#10b981', '#0ea5e9', '#6366f1', '#d946ef'];
+            
+            // Find the maximum category total to scale the bars properly
+            const maxCategoryAmount = Math.max(...categories.map(c => categoryTotals[c]));
+            
+            let barsHtml = '';
+
+            categories.forEach((cat, index) => {
                 const total = categoryTotals[cat];
-                const percentage = monthlyTotal > 0 ? ((total / monthlyTotal) * 100).toFixed(0) : 0;
+                const percentage = monthlyTotal > 0 ? (total / monthlyTotal) * 100 : 0;
+                const displayPercentage = percentage.toFixed(0);
+                const color = colors[index % colors.length];
                 
-                const itemDiv = document.createElement('div');
-                itemDiv.className = "flex justify-between items-center text-sm";
-                itemDiv.innerHTML = `
-                    <div class="flex items-center space-x-2 flex-1">
-                        <div class="w-2 h-2 rounded-full bg-gray-300"></div>
-                        <span class="text-gray-700 font-medium">${cat}</span>
-                        <span class="text-xs text-gray-400">${percentage}%</span>
+                // Strict height calculation for proportional bars (max 80% to leave room for top percentage label)
+                // Min height of 5% just so the bar remains visible and clickable
+                const barHeight = maxCategoryAmount > 0 ? Math.max((total / maxCategoryAmount) * 80, 5) : 0;
+                
+                // Truncate long category names
+                const shortCat = cat.length > 10 ? cat.substring(0, 8) + '...' : cat;
+
+                barsHtml += `
+                    <div class="flex flex-col justify-end items-center flex-1 h-full min-w-[16px] max-w-[48px] group cursor-pointer" onclick="window.expandBar(event, ${index})">
+                        <div class="text-[11px] font-bold text-gray-500 mb-1.5 transition-all duration-300 group-hover:-translate-y-1 group-hover:text-gray-800 z-20">${displayPercentage}%</div>
+                        
+                        <div id="bar-container-${index}" class="w-full rounded-t-md transition-all duration-300 group-hover:-translate-y-1 relative flex flex-col items-center justify-end shadow-sm border border-black/5 overflow-hidden z-10" style="height: ${barHeight}%; background-color: ${color};">
+                            <div class="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent pointer-events-none rounded-t-md"></div>
+                            
+                            <!-- Vertical text container -->
+                            <div class="z-10 text-white flex pt-2 pb-3 h-full w-full justify-start items-center overflow-visible" style="writing-mode: vertical-rl; transform: rotate(180deg);">
+                                <span id="bar-text-${index}" data-short="${shortCat.replace(/"/g, '&quot;')}" data-full="${cat.replace(/"/g, '&quot;')}" class="text-[11px] font-medium whitespace-nowrap leading-none tracking-wide transition-all" style="text-shadow: 0px 1px 3px rgba(0,0,0,0.8);">${shortCat}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-2.5 text-[10px] font-bold text-gray-600 whitespace-nowrap tracking-tighter transition-all duration-300 group-hover:text-gray-900">${formatCurrency(total)}</div>
                     </div>
-                    <div class="font-semibold text-gray-800">${formatCurrency(total)}</div>
                 `;
-                listContainer.appendChild(itemDiv);
             });
+            
+            const chartHtml = `
+                <div class="w-full h-96 mt-6 mb-2 relative">
+                    <!-- Squeezed Bars Container -->
+                    <div class="absolute inset-0 flex items-end w-full">
+                        <div class="flex h-full w-full items-end justify-around gap-1 pb-2 px-1">
+                            ${barsHtml}
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            listContainer.innerHTML = chartHtml;
         }
 
         window.exportToCSV = function() {
@@ -709,7 +784,7 @@
             }
 
             if (!hasData) {
-                alert(`No data to export for ${monthNames[currentMonth]} ${currentYear}`);
+                window.showToast(`No data to export for ${monthNames[currentMonth]} ${currentYear}`, true);
                 return;
             }
 
@@ -722,7 +797,6 @@
             document.body.removeChild(link);
         };
 
-        // Category Management Logic
         window.openCategoryManager = function() {
             document.getElementById('category-modal').classList.remove('hidden');
             renderCategoryManagerList();
@@ -762,7 +836,6 @@
             const updatedList = [...userCategories, newCat].sort((a, b) => a.localeCompare(b));
             const categoriesRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'preferences', 'categories');
             
-            // Disable button briefly to prevent double clicks
             const btn = event.currentTarget;
             btn.disabled = true;
             btn.innerHTML = '...';
@@ -806,7 +879,6 @@
             });
         }
 
-        // Add event listener for Enter key in category manager input
         document.getElementById('new-category-input').addEventListener('keypress', function (e) {
             if (e.key === 'Enter') window.handleAddCategory();
         });
