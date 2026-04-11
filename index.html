@@ -161,25 +161,11 @@
         // =========================================================================
         // DYNAMIC FIREBASE CONFIGURATION (Execution Environment Rules)
         // =========================================================================
-        let firebaseConfig;
-        if (typeof __firebase_config !== 'undefined') {
-            firebaseConfig = JSON.parse(__firebase_config);
-        } else {
-            console.warn("Using local fallback Firebase configuration.");
-            firebaseConfig = {
-                apiKey: "AIzaSyBoUPFJZn5vnREHkc3PRjwAoooMGy6Vqgk",
-                authDomain: "new-tracker-552fb.firebaseapp.com",
-                projectId: "new-tracker-552fb",
-                storageBucket: "new-tracker-552fb.firebasestorage.app",
-                messagingSenderId: "579534758798",
-                appId: "1:579534758798:web:28b2316c74467dc2e03adf"
-            };
-        }
-        
+        const firebaseConfig = JSON.parse(__firebase_config);
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const appId = (typeof __app_id !== 'undefined' && __app_id) ? __app_id : 'default-app-id';
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         
         let currentUser = null;
         let isDataLoaded = false;
@@ -237,7 +223,6 @@
         onAuthStateChanged(auth, (user) => {
             currentUser = user;
             if (user) {
-                autoDeleteOldData(user.uid);
                 loadExpenses(user.uid);
             } else {
                 isDataLoaded = false;
@@ -256,36 +241,6 @@
                 }
             }
         });
-
-        async function autoDeleteOldData(userId) {
-            const oneYearAgo = new Date();
-            oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-            const cutoffDateStr = formatDate(oneYearAgo); 
-            const cutoffMonthStr = cutoffDateStr.substring(0, 7); 
-
-            try {
-                const expensesRef = collection(db, 'artifacts', appId, 'users', userId, 'expenses');
-                const expSnapshot = await getDocs(expensesRef);
-                
-                expSnapshot.forEach((docSnap) => {
-                    const data = docSnap.data();
-                    if (data.date && data.date < cutoffDateStr) {
-                        deleteDoc(doc(db, 'artifacts', appId, 'users', userId, 'expenses', docSnap.id));
-                    }
-                });
-
-                const incomesRef = collection(db, 'artifacts', appId, 'users', userId, 'incomes');
-                const incSnapshot = await getDocs(incomesRef);
-                
-                incSnapshot.forEach((docSnap) => {
-                    if (docSnap.id < cutoffMonthStr) {
-                        deleteDoc(doc(db, 'artifacts', appId, 'users', userId, 'incomes', docSnap.id));
-                    }
-                });
-            } catch (error) {
-                console.error("Error pruning old data:", error);
-            }
-        }
 
         function loadExpenses(userId) {
             if (unsubscribeSnap) unsubscribeSnap();
