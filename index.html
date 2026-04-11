@@ -156,7 +156,8 @@
         // =========================================================================
         let firebaseConfig;
         if (typeof __firebase_config !== 'undefined') {
-            firebaseConfig = JSON.parse(__firebase_config);
+            // FIX: Safely handle both string and object formats to prevent JSON.parse crashes
+            firebaseConfig = typeof __firebase_config === 'string' ? JSON.parse(__firebase_config) : __firebase_config;
         } else {
             // Fallback to your original config if testing locally outside the environment
             console.warn("Using local fallback Firebase configuration.");
@@ -197,7 +198,14 @@
         const initAuth = async () => {
             try {
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    await signInWithCustomToken(auth, __initial_auth_token);
+                    try {
+                        // Attempt to use environment token
+                        await signInWithCustomToken(auth, __initial_auth_token);
+                    } catch (tokenError) {
+                        // FIX: If token is expired or invalid, gracefully fallback to anonymous
+                        console.warn("Custom token failed, falling back to anonymous login:", tokenError);
+                        await signInAnonymously(auth);
+                    }
                 } else {
                     await signInAnonymously(auth);
                 }
@@ -230,7 +238,12 @@
                 updateSelectedDayUI();
                 updateDailyExpensesUI();
                 updateMonthlySummaryUI();
-                document.getElementById('loading-state').innerText = "Please log in.";
+                
+                // FIX: Check if element exists before modifying to prevent crash
+                const loadingState = document.getElementById('loading-state');
+                if (loadingState) {
+                    loadingState.innerText = "Please log in.";
+                }
             }
         });
 
@@ -305,7 +318,10 @@
                     expenses[data.date].push({ id: data.id, category: data.category, amount: data.amount });
                 });
                 
-                document.getElementById('loading-state')?.remove(); // Remove loading state once data arrives
+                // FIX: Hide instead of remove to prevent later null reference errors
+                const loadingState = document.getElementById('loading-state');
+                if (loadingState) loadingState.style.display = 'none'; 
+                
                 renderCalendar();
                 updateSelectedDayUI();
                 updateDailyExpensesUI();
