@@ -328,6 +328,11 @@
                 updateMonthlySummaryUI();
             }, (error) => {
                 console.error("Snapshot Error:", error);
+                const loadingState = document.getElementById('loading-state');
+                if (loadingState) {
+                    loadingState.style.display = 'block';
+                    loadingState.innerHTML = `<div class="text-red-500 text-xs font-bold bg-red-50 p-2 rounded border border-red-100">Database Blocked: ${error.message}<br>Please update your Firebase Security Rules.</div>`;
+                }
             });
 
             const incomesRef = collection(db, 'artifacts', appId, 'users', userId, 'incomes');
