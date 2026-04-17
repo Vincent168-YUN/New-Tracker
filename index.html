@@ -705,6 +705,7 @@
             let gradientStops = [];
             let currentPercent = 0;
             let legendHTML = '<div class="mt-6 space-y-3 px-2 max-h-44 overflow-y-auto scrollbar-thin">';
+            let labelsHTML = '';
 
             categories.forEach((cat, index) => {
                 const total = categoryTotals[cat];
@@ -713,6 +714,25 @@
 
                 // Build the conic-gradient string
                 gradientStops.push(`${color} ${currentPercent}% ${currentPercent + percent}%`);
+
+                // Calculate the exact center of the slice to position the label using Trigonometry
+                if (percent > 6) { // Only show label if the slice is large enough to prevent overlapping
+                    const midPercent = currentPercent + (percent / 2);
+                    // Convert percentage to degrees (360 deg = 100%), subtract 90 because CSS conic gradients start at 12 o'clock
+                    const angleRad = (midPercent * 3.6 - 90) * (Math.PI / 180);
+                    const radius = 45; // Distance from the center (chart is 160x160, so max radius is 80)
+                    
+                    const x = Math.cos(angleRad) * radius;
+                    const y = Math.sin(angleRad) * radius;
+
+                    labelsHTML += `
+                        <div class="absolute flex flex-col items-center justify-center transform -translate-x-1/2 -translate-y-1/2 pointer-events-none" 
+                             style="left: calc(50% + ${x}px); top: calc(50% + ${y}px);">
+                            <span class="text-[10px] font-bold text-white drop-shadow-md truncate max-w-[65px] text-center leading-tight tracking-wide">${cat}</span>
+                        </div>
+                    `;
+                }
+
                 currentPercent += percent;
 
                 // Build legend item
@@ -733,14 +753,11 @@
 
             legendHTML += '</div>';
 
-            // Construct the Donut Chart layout
+            // Construct the Full Pie Chart layout
             listContainer.innerHTML = `
                 <div class="flex flex-col items-center w-full">
                     <div class="relative w-40 h-40 rounded-full shadow-sm flex items-center justify-center transition-transform hover:scale-105 duration-500" style="background: conic-gradient(${gradientStops.join(', ')});">
-                        <div class="absolute w-24 h-24 bg-white rounded-full shadow-sm flex flex-col items-center justify-center border border-gray-50/50">
-                            <span class="text-[9px] text-gray-400 font-bold uppercase tracking-wider mb-0.5">Total</span>
-                            <span class="text-[14px] font-extrabold text-gray-800 leading-tight">${formatCurrency(monthlyTotal)}</span>
-                        </div>
+                        ${labelsHTML}
                     </div>
                     <div class="w-full">
                         ${legendHTML}
