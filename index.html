@@ -121,7 +121,7 @@
                 </div>
             </div>
             
-            <div id="category-list" class="relative w-full h-[260px] overflow-x-auto flex items-end pb-10 pl-8 pt-4 mt-6 scrollbar-thin">
+            <div id="category-list" class="w-full overflow-x-auto pb-10 pt-8 mt-2 scrollbar-thin">
                 <div class="text-sm text-center text-gray-400 py-4 italic w-full" id="loading-state">Loading cloud database...</div>
             </div>
         </div>
@@ -690,52 +690,50 @@
             
             if (categories.length === 0 && currentUser) {
                 listContainer.innerHTML = '<div class="text-sm text-center text-gray-400 py-4 italic w-full">No expenses recorded this month.</div>';
-                listContainer.className = "relative w-full h-24 overflow-x-auto flex items-center justify-center pb-2 pl-4 pt-2 mt-4";
+                listContainer.className = "w-full overflow-x-auto flex items-center justify-center pb-2 pl-4 pt-2 mt-4";
                 return;
             }
 
             // Apply chart layout classes for vertical scrolling bar chart
-            listContainer.className = "relative w-full h-[260px] overflow-x-auto flex items-end pb-10 pl-8 pt-4 mt-6 scrollbar-thin";
+            listContainer.className = "w-full overflow-x-auto pb-10 pt-8 mt-2 scrollbar-thin";
 
             categories.sort((a, b) => categoryTotals[b] - categoryTotals[a]);
 
+            // FIX: Retrieve the first category's total to find the max value. Previously missed the index!
             const maxTotal = categories.length > 0 ? categoryTotals[categories] : 0;
 
-            // Draw the thick L-shaped X and Y axis lines
-            listContainer.innerHTML = `
-                <div class="absolute left-6 top-4 bottom-10 w-[4px] bg-[#3f434c] rounded-t-sm z-10"></div>
-                <div class="absolute left-6 bottom-10 right-0 h-[4px] bg-[#3f434c] rounded-r-sm z-10 min-w-max" style="width: 200%;"></div>
-            `;
-
-            // Container for the vertical bars
-            const barsWrapper = document.createElement('div');
-            barsWrapper.className = "flex h-full items-end pl-3 pr-6 space-x-6 min-w-max relative z-20 mb-[4px]";
+            // Draw the thick L-shaped X and Y axis natively using borders for perfect alignment
+            const chartArea = document.createElement('div');
+            chartArea.className = "flex h-[180px] items-end border-l-[4px] border-b-[4px] border-[#3f434c] ml-4 min-w-max pl-4 pr-8 space-x-7 relative";
 
             // Matching the color scheme from your reference photo
             const barColors = ['bg-[#eb8277]', 'bg-[#82b9c8]', 'bg-[#eb8277]', 'bg-[#3f434c]', 'bg-[#3f434c]'];
 
             categories.forEach((cat, index) => {
                 const total = categoryTotals[cat];
-                // 75% max height limits the tallest bar so we have enough room above for labels
+                // Max height of 75% to leave room for the text above the bars
                 const heightPercentage = maxTotal > 0 ? (total / maxTotal) * 75 : 0;
+                const actualBarHeight = Math.max(heightPercentage, 1); // minimum 1% height to be visible
+                
                 const colorClass = barColors[index % barColors.length];
                 const percentageOfTotal = monthlyTotal > 0 ? ((total / monthlyTotal) * 100).toFixed(0) : 0;
                 
                 const itemDiv = document.createElement('div');
                 itemDiv.className = "relative flex flex-col items-center justify-end h-full w-9 group";
                 
+                // Position labels absolutely based on the bar height so they float just above it perfectly
                 itemDiv.innerHTML = `
-                    <div class="flex flex-col items-center absolute bottom-full mb-1.5 w-24">
+                    <div class="flex flex-col items-center absolute w-24 text-center z-10" style="bottom: ${actualBarHeight}%; margin-bottom: 6px;">
                         <span class="text-[10px] text-gray-400 font-bold mb-0.5">${percentageOfTotal}%</span>
                         <span class="text-[11.5px] font-extrabold text-gray-800 leading-none">${formatCurrency(total)}</span>
                     </div>
-                    <div class="${colorClass} w-full rounded-t-[3px] transition-all duration-700 ease-out shadow-sm cursor-pointer hover:opacity-85" style="height: ${Math.max(heightPercentage, 1)}%;"></div>
-                    <span class="absolute -bottom-8 text-[11px] text-gray-600 font-semibold w-16 text-center truncate" title="${cat}">${cat}</span>
+                    <div class="${colorClass} w-full rounded-t-[3px] transition-all duration-700 ease-out shadow-sm cursor-pointer hover:opacity-85" style="height: ${actualBarHeight}%;"></div>
+                    <span class="absolute -bottom-8 text-[11.5px] text-gray-600 font-semibold w-20 text-center truncate" title="${cat}">${cat}</span>
                 `;
-                barsWrapper.appendChild(itemDiv);
+                chartArea.appendChild(itemDiv);
             });
             
-            listContainer.appendChild(barsWrapper);
+            listContainer.appendChild(chartArea);
         }
 
         window.exportToCSV = function() {
