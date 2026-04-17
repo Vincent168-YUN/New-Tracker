@@ -121,7 +121,7 @@
                 </div>
             </div>
             
-            <div id="category-list" class="space-y-3 max-h-48 overflow-y-auto pr-2">
+            <div id="category-list" class="space-y-4 max-h-52 overflow-y-auto pr-2 pb-1">
                 <div class="text-sm text-center text-gray-400 py-4 italic" id="loading-state">Loading cloud database...</div>
             </div>
         </div>
@@ -695,19 +695,26 @@
 
             categories.sort((a, b) => categoryTotals[b] - categoryTotals[a]);
 
-            categories.forEach(cat => {
+            categories.forEach((cat, index) => {
                 const total = categoryTotals[cat];
-                const percentage = monthlyTotal > 0 ? ((total / monthlyTotal) * 100).toFixed(0) : 0;
+                const percentage = monthlyTotal > 0 ? ((total / monthlyTotal) * 100).toFixed(1) : 0;
+                
+                // Highlight the highest expense in red, the rest in a minimalist dark gray
+                const barColor = index === 0 ? 'bg-[#ff3b30]' : 'bg-gray-800';
                 
                 const itemDiv = document.createElement('div');
-                itemDiv.className = "flex justify-between items-center text-sm";
+                itemDiv.className = "w-full";
                 itemDiv.innerHTML = `
-                    <div class="flex items-center space-x-2 flex-1">
-                        <div class="w-2 h-2 rounded-full bg-gray-300"></div>
-                        <span class="text-gray-700 font-medium">${cat}</span>
-                        <span class="text-xs text-gray-400">${percentage}%</span>
+                    <div class="flex justify-between items-end mb-1.5">
+                        <span class="text-[13px] font-medium text-gray-700 truncate pr-2">${cat}</span>
+                        <div class="text-right flex-shrink-0 flex items-baseline justify-end">
+                            <span class="text-[13px] font-bold text-gray-800">${formatCurrency(total)}</span>
+                            <span class="text-[11px] font-medium text-gray-400 ml-1.5 w-9 text-right">${percentage}%</span>
+                        </div>
                     </div>
-                    <div class="font-semibold text-gray-800">${formatCurrency(total)}</div>
+                    <div class="w-full bg-gray-100/80 rounded-full h-1.5 overflow-hidden">
+                        <div class="${barColor} h-full rounded-full transition-all duration-700 ease-out" style="width: ${percentage}%"></div>
+                    </div>
                 `;
                 listContainer.appendChild(itemDiv);
             });
