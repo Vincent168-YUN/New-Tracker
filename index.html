@@ -22,6 +22,13 @@
 </head>
 <body class="bg-gray-100 min-h-screen flex items-center justify-center py-10 px-4">
 
+    <noscript>
+        <div class="fixed inset-0 bg-white flex flex-col items-center justify-center p-6 text-center z-50">
+            <h2 class="text-xl font-bold text-gray-900 mb-2">JavaScript Required</h2>
+            <p class="text-gray-600">This app requires JavaScript. Please enable it in your browser.</p>
+        </div>
+    </noscript>
+
     <div class="bg-white rounded-2xl shadow-xl w-full max-w-[380px] overflow-hidden border border-gray-100">
         
         <div class="flex items-center justify-between px-6 py-5">
@@ -33,6 +40,11 @@
             </div>
             
             <div class="flex items-center space-x-3">
+                <button onclick="openSyncModal()" class="text-blue-500 hover:text-blue-600 focus:outline-none transition-colors" title="Sync Across Devices">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path>
+                    </svg>
+                </button>
                 <button onclick="exportToCSV()" class="text-red-500 hover:text-red-600 focus:outline-none transition-colors" title="Export Month to CSV">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                       <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
@@ -146,6 +158,24 @@
         </div>
     </div>
 
+    <!-- Sync Manager Modal -->
+    <div id="sync-modal" class="fixed inset-0 bg-black/50 hidden z-50 flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-[340px] overflow-hidden flex flex-col">
+            <div class="px-5 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                <h3 class="font-bold text-gray-800">Device Sync</h3>
+                <button onclick="closeSyncModal()" class="text-gray-400 hover:text-gray-600 focus:outline-none">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <div class="p-5">
+                <p class="text-xs text-gray-500 mb-4 leading-relaxed">To view and edit your data across your iPhone, MacBook, and Tablet, create a secret <strong>Sync Passcode</strong>.</p>
+                <p class="text-xs text-gray-500 mb-4 leading-relaxed">Enter the exact same passcode on all your devices to link them to the same expense history.</p>
+                <input type="text" id="sync-code-input" class="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-3 outline-none shadow-sm mb-4" placeholder="Enter a secret passcode...">
+                <button onclick="applySyncCode()" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-lg text-sm px-5 py-3 text-center transition-colors shadow-sm focus:ring-4 focus:ring-blue-300 outline-none">Link Device</button>
+            </div>
+        </div>
+    </div>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
@@ -156,7 +186,7 @@
         // =========================================================================
         let firebaseConfig;
         if (typeof __firebase_config !== 'undefined') {
-            // FIX: Safely handle both string and object formats to prevent JSON.parse crashes
+            // Safely handle both string and object formats to prevent JSON.parse crashes
             firebaseConfig = typeof __firebase_config === 'string' ? JSON.parse(__firebase_config) : __firebase_config;
         } else {
             // Fallback to your original config if testing locally outside the environment
@@ -180,6 +210,13 @@
         let unsubscribeIncomesSnap = null;
         // =========================================================================
 
+        let customSyncId = null; // NEW: Added to support cross-device sync
+
+        function getWorkingUserId() {
+            if (!currentUser) return null;
+            return customSyncId ? `sync_${customSyncId}` : currentUser.uid;
+        }
+
         const defaultCategories = ["Food/Drinks", "Parking", "Grocery", "Event", "Beer", "Online shopping", "Vehicle Care", "Data plan", "Gift", "Fitness", "Family", "Contact lens", "Hair cut", "Coffee bean and Milk", "Travel", "Other"].sort((a, b) => a.localeCompare(b));
         let userCategories = [...defaultCategories];
         let unsubscribeCategoriesSnap = null;
@@ -202,7 +239,7 @@
                         // Attempt to use environment token
                         await signInWithCustomToken(auth, __initial_auth_token);
                     } catch (tokenError) {
-                        // FIX: If token is expired or invalid, gracefully fallback to anonymous
+                        // If token is expired or invalid, gracefully fallback to anonymous
                         console.warn("Custom token failed, falling back to anonymous login:", tokenError);
                         await signInAnonymously(auth);
                     }
@@ -213,11 +250,15 @@
                 console.error("Authentication Error:", error);
                 const loadingState = document.getElementById('loading-state');
                 if (loadingState) {
-                    if (error.code === 'auth/operation-not-allowed') {
-                        loadingState.innerHTML = `<span class="text-red-500 font-bold">Error:</span> Anonymous Sign-in is disabled in your Firebase Console.`;
-                    } else {
-                        loadingState.innerText = "Failed to authenticate: " + error.message;
-                    }
+                    loadingState.style.display = 'block';
+                    loadingState.innerHTML = `
+                        <div class="bg-red-50 border border-red-200 rounded-lg p-3 text-left">
+                            <span class="text-red-600 font-bold block mb-1">Connection Error</span>
+                            <span class="text-red-500 text-xs block mb-2">${error.message}</span>
+                            <span class="text-red-600 text-xs font-semibold block">Mac/Tablet Users:</span>
+                            <span class="text-red-500 text-xs block">If the app won't load, your browser (Safari, Brave, etc.) is likely blocking third-party cookies or cross-site tracking, which prevents the secure database connection. Please disable tracker blocking for this page and refresh.</span>
+                        </div>
+                    `;
                 }
             }
         };
@@ -227,8 +268,8 @@
         onAuthStateChanged(auth, (user) => {
             currentUser = user;
             if (user) {
-                autoDeleteOldData(user.uid);
-                loadExpenses(user.uid);
+                autoDeleteOldData(getWorkingUserId());
+                loadExpenses(getWorkingUserId());
             } else {
                 expenses = {};
                 monthlyIncomes = {};
@@ -239,7 +280,7 @@
                 updateDailyExpensesUI();
                 updateMonthlySummaryUI();
                 
-                // FIX: Check if element exists before modifying to prevent crash
+                // Check if element exists before modifying to prevent crash
                 const loadingState = document.getElementById('loading-state');
                 if (loadingState) {
                     loadingState.innerText = "Please log in.";
@@ -248,6 +289,7 @@
         });
 
         async function autoDeleteOldData(userId) {
+            if (!userId) return;
             // Calculate the date exactly 12 months ago
             const oneYearAgo = new Date();
             oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
@@ -318,7 +360,7 @@
                     expenses[data.date].push({ id: data.id, category: data.category, amount: data.amount });
                 });
                 
-                // FIX: Hide instead of remove to prevent later null reference errors
+                // Hide instead of remove to prevent later null reference errors
                 const loadingState = document.getElementById('loading-state');
                 if (loadingState) loadingState.style.display = 'none'; 
                 
@@ -432,7 +474,7 @@
             }
 
             try {
-                const expensesRef = collection(db, 'artifacts', appId, 'users', currentUser.uid, 'expenses');
+                const expensesRef = collection(db, 'artifacts', appId, 'users', getWorkingUserId(), 'expenses');
                 await addDoc(expensesRef, {
                     date: selectedDateStr,
                     category: category,
@@ -462,7 +504,7 @@
             for (const exp of expsToDelete) {
                 if (!exp || !exp.id) continue;
                 try {
-                    const docRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'expenses', exp.id);
+                    const docRef = doc(db, 'artifacts', appId, 'users', getWorkingUserId(), 'expenses', exp.id);
                     await deleteDoc(docRef);
                 } catch (error) {
                     console.error("Error deleting document: ", error);
@@ -473,7 +515,7 @@
         window.deleteSingleExpense = async function(expId) {
             if (!currentUser || !expId) return;
             try {
-                const docRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'expenses', expId);
+                const docRef = doc(db, 'artifacts', appId, 'users', getWorkingUserId(), 'expenses', expId);
                 await deleteDoc(docRef);
             } catch (error) {
                 console.error("Error deleting single document: ", error);
@@ -499,7 +541,7 @@
             const targetMonthPrefix = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
             
             try {
-                const docRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'incomes', targetMonthPrefix);
+                const docRef = doc(db, 'artifacts', appId, 'users', getWorkingUserId(), 'incomes', targetMonthPrefix);
                 await setDoc(docRef, { amount: newAmount }, { merge: true });
             } catch (error) {
                 console.error("Error updating income: ", error);
@@ -864,7 +906,7 @@
             if (!newCat || userCategories.includes(newCat)) return;
             
             const updatedList = [...userCategories, newCat].sort((a, b) => a.localeCompare(b));
-            const categoriesRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'preferences', 'categories');
+            const categoriesRef = doc(db, 'artifacts', appId, 'users', getWorkingUserId(), 'preferences', 'categories');
             
             // Disable button briefly to prevent double clicks
             const btn = event.currentTarget;
@@ -882,7 +924,7 @@
             if (!currentUser) return;
             
             const updatedList = userCategories.filter(c => c !== catToRemove);
-            const categoriesRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'preferences', 'categories');
+            const categoriesRef = doc(db, 'artifacts', appId, 'users', getWorkingUserId(), 'preferences', 'categories');
             await setDoc(categoriesRef, { list: updatedList }, { merge: true });
         };
 
@@ -914,6 +956,47 @@
         document.getElementById('new-category-input').addEventListener('keypress', function (e) {
             if (e.key === 'Enter') window.handleAddCategory();
         });
+
+        // Device Sync Logic
+        window.openSyncModal = function() {
+            document.getElementById('sync-modal').classList.remove('hidden');
+            const input = document.getElementById('sync-code-input');
+            if (customSyncId) input.value = customSyncId;
+            input.focus();
+        };
+
+        window.closeSyncModal = function() {
+            document.getElementById('sync-modal').classList.add('hidden');
+        };
+
+        window.applySyncCode = function() {
+            const input = document.getElementById('sync-code-input');
+            const code = input.value.trim();
+            if (code) {
+                customSyncId = encodeURIComponent(code).replace(/\./g, '_');
+            } else {
+                customSyncId = null; // Clear sync if empty
+            }
+            
+            closeSyncModal();
+            
+            if (currentUser) {
+                const loadingState = document.getElementById('loading-state');
+                if (loadingState) {
+                    loadingState.style.display = 'block';
+                    loadingState.innerText = "Syncing cloud database...";
+                }
+                
+                // Clear local data state
+                expenses = {};
+                monthlyIncomes = {};
+                updateDailyExpensesUI();
+                updateMonthlySummaryUI();
+                
+                // Re-fetch data using new Sync ID path
+                loadExpenses(getWorkingUserId());
+            }
+        };
 
         // Initialize UI
         renderCategoryDropdown();
