@@ -640,46 +640,6 @@
             });
         }
 
-        // --- NEW GLOBALS FOR PIE CHART INTERACTION ---
-        window.currentPieSlices = [];
-        
-        window.highlightLegendItem = function(index) {
-            // Remove highlight from all items
-            document.querySelectorAll('.legend-item').forEach(el => {
-                el.classList.remove('bg-white', 'scale-[1.03]', 'shadow-md', 'border-gray-200', 'z-10', 'relative');
-                el.classList.add('border-transparent');
-            });
-            // Apply highlight to the targeted item
-            const target = document.getElementById(`legend-item-${index}`);
-            if (target) {
-                target.classList.remove('border-transparent');
-                target.classList.add('bg-white', 'scale-[1.03]', 'shadow-md', 'border-gray-200', 'z-10', 'relative');
-                // Ensure the highlighted item scrolls smoothly into view
-                target.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            }
-        };
-
-        window.handlePieClick = function(e) {
-            // Calculate where on the pie chart the user clicked
-            const rect = e.currentTarget.getBoundingClientRect();
-            const x = e.clientX - rect.left - rect.width / 2;
-            const y = e.clientY - rect.top - rect.height / 2;
-            
-            // Calculate angle from center using trigonometry
-            let angle = Math.atan2(y, x) * 180 / Math.PI; 
-            angle = angle + 90; // Shift to 12 o'clock
-            if (angle < 0) angle += 360; 
-            
-            const percent = (angle / 360) * 100;
-
-            // Find which category slice this percentage falls into
-            const slice = window.currentPieSlices.find(s => percent >= s.start && percent <= s.end);
-            if (slice) {
-                window.highlightLegendItem(slice.index);
-            }
-        };
-        // ---------------------------------------------
-
         function updateMonthlySummaryUI() {
             const listContainer = document.getElementById('category-list');
             
@@ -735,19 +695,17 @@
             }
 
             // Apply chart layout classes for pie chart layout
-            listContainer.className = "w-full pb-2 pt-5 mt-2";
+            listContainer.className = "w-full pb-2 pt-4 mt-2";
 
             categories.sort((a, b) => categoryTotals[b] - categoryTotals[a]);
 
-            // Authentic iOS System Color Palette for premium feel
-            const pieColors = ['#FF3B30', '#007AFF', '#FFCC00', '#34C759', '#AF52DE', '#FF9500', '#5AC8FA', '#FF2D55', '#5856D6', '#8E8E93'];
+            // Modern color palette for the pie chart
+            const pieColors = ['#eb8277', '#82b9c8', '#3f434c', '#fbbc05', '#34a853', '#a78bfa', '#fb923c', '#94a3b8', '#f472b6', '#2dd4bf'];
 
             let gradientStops = [];
             let currentPercent = 0;
-            window.currentPieSlices = []; // Reset slice math data
-            
-            // Add a subtle container background for the legend items
-            let legendHTML = '<div class="mt-8 space-y-1 px-1 max-h-48 overflow-y-auto scrollbar-thin rounded-xl p-1.5 bg-gray-50/50 border border-gray-100/80">';
+            let legendHTML = '<div class="mt-6 space-y-3 px-2 max-h-44 overflow-y-auto scrollbar-thin">';
+            let labelsHTML = '';
 
             categories.forEach((cat, index) => {
                 const total = categoryTotals[cat];
@@ -756,21 +714,36 @@
 
                 // Build the conic-gradient string
                 gradientStops.push(`${color} ${currentPercent}% ${currentPercent + percent}%`);
-                
-                // Save boundary math data for click/touch detection
-                window.currentPieSlices.push({ start: currentPercent, end: currentPercent + percent, index: index });
+
+                // Calculate the exact center of the slice to position the label using Trigonometry
+                if (percent > 6) { // Only show label if the slice is large enough to prevent overlapping
+                    const midPercent = currentPercent + (percent / 2);
+                    // Convert percentage to degrees (360 deg = 100%), subtract 90 because CSS conic gradients start at 12 o'clock
+                    const angleRad = (midPercent * 3.6 - 90) * (Math.PI / 180);
+                    const radius = 45; // Distance from the center (chart is 160x160, so max radius is 80)
+                    
+                    const x = Math.cos(angleRad) * radius;
+                    const y = Math.sin(angleRad) * radius;
+
+                    labelsHTML += `
+                        <div class="absolute flex flex-col items-center justify-center transform -translate-x-1/2 -translate-y-1/2 pointer-events-none" 
+                             style="left: calc(50% + ${x}px); top: calc(50% + ${y}px);">
+                            <span class="text-[10px] font-bold text-white drop-shadow-md truncate max-w-[65px] text-center leading-tight tracking-wide">${cat}</span>
+                        </div>
+                    `;
+                }
 
                 currentPercent += percent;
 
-                // Build interactive legend item with animation classes
+                // Build legend item
                 const displayPercent = percent.toFixed(1);
                 legendHTML += `
-                    <div id="legend-item-${index}" class="legend-item flex items-center justify-between text-sm group border border-transparent p-2.5 rounded-xl transition-all duration-300 cursor-pointer" onclick="highlightLegendItem(${index})">
-                        <div class="flex items-center space-x-3 overflow-hidden pr-2 pointer-events-none">
-                            <div class="w-3.5 h-3.5 rounded-full flex-shrink-0 shadow-sm" style="background-color: ${color};"></div>
+                    <div class="flex items-center justify-between text-sm group">
+                        <div class="flex items-center space-x-3 overflow-hidden pr-2">
+                            <div class="w-3 h-3 rounded-full flex-shrink-0 shadow-sm" style="background-color: ${color};"></div>
                             <span class="text-gray-700 font-medium truncate group-hover:text-gray-900 transition-colors">${cat}</span>
                         </div>
-                        <div class="flex items-center space-x-2 flex-shrink-0 pointer-events-none">
+                        <div class="flex items-center space-x-2 flex-shrink-0">
                             <span class="text-gray-400 text-[11px] font-semibold w-10 text-right">${displayPercent}%</span>
                             <span class="font-extrabold text-gray-800 text-[13px] w-16 text-right">${formatCurrency(total)}</span>
                         </div>
@@ -780,16 +753,13 @@
 
             legendHTML += '</div>';
 
-            // Construct the Clean Minimalist Pie Chart layout with iOS Liquid Glass look
+            // Construct the Full Pie Chart layout
             listContainer.innerHTML = `
                 <div class="flex flex-col items-center w-full">
-                    <div class="relative w-48 h-48 rounded-full shadow-[0_15px_35px_-5px_rgba(0,0,0,0.15),0_8px_10px_-6px_rgba(0,0,0,0.1)] flex items-center justify-center cursor-pointer transition-transform duration-300 hover:scale-[1.02] active:scale-[0.98] border-[4px] border-white" 
-                         style="background: conic-gradient(${gradientStops.join(', ')});"
-                         onclick="handlePieClick(event)">
-                        <!-- Glass overlay for 3D glossy bevel effect -->
-                        <div class="absolute inset-0 rounded-full shadow-[inset_0_12px_24px_rgba(255,255,255,0.4),inset_0_-8px_16px_rgba(0,0,0,0.1)] pointer-events-none"></div>
+                    <div class="relative w-40 h-40 rounded-full shadow-sm flex items-center justify-center transition-transform hover:scale-105 duration-500" style="background: conic-gradient(${gradientStops.join(', ')});">
+                        ${labelsHTML}
                     </div>
-                    <div class="w-full mt-2">
+                    <div class="w-full">
                         ${legendHTML}
                     </div>
                 </div>
