@@ -11,918 +11,940 @@
         ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
         input[type=number]::-webkit-inner-spin-button,
-        input[type=number]::-webkit-outer-spin-button {
-            -webkit-appearance: none;
-            margin: 0;
-        }
+        input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen flex items-center justify-center py-10 px-4">
 
-    <noscript>
-        <div class="fixed inset-0 bg-white flex flex-col items-center justify-center p-6 text-center z-50">
-            <h2 class="text-xl font-bold text-gray-900 mb-2">JavaScript Required</h2>
-            <p class="text-gray-600">This app requires JavaScript. Please enable it in your browser.</p>
+<noscript>
+    <div class="fixed inset-0 bg-white flex flex-col items-center justify-center p-6 text-center z-50">
+        <h2 class="text-xl font-bold text-gray-900 mb-2">JavaScript Required</h2>
+        <p class="text-gray-600">This app requires JavaScript. Please enable it in your browser.</p>
+    </div>
+</noscript>
+
+<div class="bg-white rounded-2xl shadow-xl w-full max-w-[380px] overflow-hidden border border-gray-100">
+
+    <!-- Header -->
+    <div class="flex items-center justify-between px-6 py-5">
+        <div class="flex items-center space-x-2">
+            <button onclick="changeMonth(-1)" class="text-red-500 hover:text-red-600 focus:outline-none text-2xl font-light select-none">&lt;</button>
+            <h1 id="month-display" class="text-3xl font-bold text-gray-900 tracking-tight">Loading</h1>
+            <button onclick="changeMonth(1)" class="text-red-500 hover:text-red-600 focus:outline-none text-2xl font-light select-none">&gt;</button>
+            <span id="year-display" class="text-gray-400 text-sm ml-1 font-medium hidden"></span>
         </div>
-    </noscript>
+        <div class="flex items-center space-x-3">
+            <button onclick="openSyncModal()" class="text-blue-500 hover:text-blue-600 focus:outline-none transition-colors" title="Sync Across Devices">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
+                </svg>
+            </button>
+            <button onclick="exportToCSV()" class="text-red-500 hover:text-red-600 focus:outline-none transition-colors" title="Export Month to CSV">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+                </svg>
+            </button>
+        </div>
+    </div>
 
-    <div class="bg-white rounded-2xl shadow-xl w-full max-w-[380px] overflow-hidden border border-gray-100">
+    <!-- Calendar -->
+    <div class="px-6 pb-2">
+        <div class="grid grid-cols-7 gap-1 text-center mb-2">
+            <div class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">S</div>
+            <div class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">M</div>
+            <div class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">T</div>
+            <div class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">W</div>
+            <div class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">T</div>
+            <div class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">F</div>
+            <div class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">S</div>
+        </div>
+        <div id="calendar-days" class="grid grid-cols-7 gap-y-2 gap-x-1 text-center"></div>
+    </div>
 
-        <div class="flex items-center justify-between px-6 py-5">
-            <div class="flex items-center space-x-2">
-                <button onclick="changeMonth(-1)" class="text-red-500 hover:text-red-600 focus:outline-none text-2xl font-light select-none">&lt;</button>
-                <h1 id="month-display" class="text-3xl font-bold text-gray-900 tracking-tight">March</h1>
-                <button onclick="changeMonth(1)" class="text-red-500 hover:text-red-600 focus:outline-none text-2xl font-light select-none">&gt;</button>
-                <span id="year-display" class="text-gray-400 text-sm ml-1 font-medium hidden">2026</span>
-            </div>
-            <div class="flex items-center space-x-3">
-                <button onclick="openSyncModal()" class="text-blue-500 hover:text-blue-600 focus:outline-none transition-colors" title="Sync Across Devices">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path>
+    <!-- Selected Day Bar -->
+    <div class="border-t border-gray-100 bg-gray-50/50 px-6 py-4 flex justify-between items-center mt-2">
+        <div id="selected-date-text" class="text-[15px] font-medium text-gray-800">—</div>
+        <div id="daily-total" class="text-[15px] font-medium text-gray-500">$0.00</div>
+    </div>
+
+    <!-- Add Expense Row -->
+    <div class="px-6 py-4 bg-gray-50/50 border-t border-gray-100 flex flex-col space-y-2">
+        <div class="flex items-center space-x-2">
+            <div class="relative flex-1 flex shadow-sm rounded-lg">
+                <select id="expense-category" onchange="toggleCustomCategory()" class="flex-1 bg-white border border-gray-200 text-gray-700 text-sm rounded-l-lg focus:ring-red-500 focus:border-red-500 block w-full p-2.5 outline-none appearance-none cursor-pointer border-r-0 truncate"></select>
+                <button onclick="openCategoryManager()" class="bg-white border border-gray-200 border-l-0 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-r-lg px-2 focus:outline-none transition-colors" title="Manage Categories">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
                     </svg>
                 </button>
-                <button onclick="exportToCSV()" class="text-red-500 hover:text-red-600 focus:outline-none transition-colors" title="Export Month to CSV">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
-                    </svg>
-                </button>
             </div>
-        </div>
-
-        <div class="px-6 pb-2">
-            <div class="grid grid-cols-7 gap-1 text-center mb-2">
-                <div class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">S</div>
-                <div class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">M</div>
-                <div class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">T</div>
-                <div class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">W</div>
-                <div class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">T</div>
-                <div class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">F</div>
-                <div class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">S</div>
-            </div>
-            <div id="calendar-days" class="grid grid-cols-7 gap-y-2 gap-x-1 text-center"></div>
-        </div>
-
-        <div class="border-t border-gray-100 bg-gray-50/50 px-6 py-4 flex justify-between items-center mt-2">
-            <div id="selected-date-text" class="text-[15px] font-medium text-gray-800">Loading...</div>
-            <div id="daily-total" class="text-[15px] font-medium text-gray-500">$0.00</div>
-        </div>
-
-        <div class="px-6 py-4 bg-gray-50/50 border-t border-gray-100 flex flex-col space-y-2">
-            <div class="flex items-center space-x-2">
-                <div class="relative flex-1 flex shadow-sm rounded-lg">
-                    <select id="expense-category" onchange="toggleCustomCategory()" class="flex-1 bg-white border border-gray-200 text-gray-700 text-sm rounded-l-lg focus:ring-red-500 focus:border-red-500 block w-full p-2.5 outline-none appearance-none cursor-pointer border-r-0 truncate">
-                    </select>
-                    <button onclick="openCategoryManager()" class="bg-white border border-gray-200 border-l-0 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-r-lg px-2 focus:outline-none transition-colors" title="Manage Categories">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        </svg>
-                    </button>
+            <div class="relative w-24 shadow-sm">
+                <div class="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
+                    <span class="text-gray-500 sm:text-sm">$</span>
                 </div>
-                <div class="relative w-24 shadow-sm">
-                    <div class="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
-                        <span class="text-gray-500 sm:text-sm">$</span>
-                    </div>
-                    <input type="number" id="expense-amount" step="0.01" min="0" class="bg-white border border-gray-200 text-gray-900 text-sm rounded-lg focus:ring-red-500 focus:border-red-500 block w-full pl-6 pr-2 py-2.5 outline-none" placeholder="0.00">
-                </div>
-                <button onclick="addExpense()" class="text-white bg-[#ff3b30] hover:bg-red-600 focus:ring-4 focus:ring-red-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center transition-colors shadow-sm">
-                    Add
-                </button>
+                <input type="number" id="expense-amount" step="0.01" min="0"
+                    class="bg-white border border-gray-200 text-gray-900 text-sm rounded-lg focus:ring-red-500 focus:border-red-500 block w-full pl-6 pr-2 py-2.5 outline-none"
+                    placeholder="0.00">
             </div>
-            <input type="text" id="custom-category" class="hidden bg-white border border-gray-200 text-gray-900 text-sm rounded-lg focus:ring-red-500 focus:border-red-500 block w-full p-2.5 outline-none shadow-sm transition-all" placeholder="Specify the expense type...">
+            <button onclick="addExpense()" class="text-white bg-[#ff3b30] hover:bg-red-600 focus:ring-4 focus:ring-red-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center transition-colors shadow-sm">Add</button>
         </div>
+        <input type="text" id="custom-category" class="hidden bg-white border border-gray-200 text-gray-900 text-sm rounded-lg focus:ring-red-500 focus:border-red-500 block w-full p-2.5 outline-none shadow-sm transition-all" placeholder="Specify the expense type...">
+    </div>
 
-        <div class="px-6 py-2 bg-white">
-            <ul id="daily-expense-list" class="space-y-2 max-h-32 overflow-y-auto pr-1"></ul>
+    <!-- Daily Expenses List -->
+    <div class="px-6 py-2 bg-white">
+        <ul id="daily-expense-list" class="space-y-2 max-h-32 overflow-y-auto pr-1"></ul>
+    </div>
+
+    <!-- Monthly Summary -->
+    <div class="border-t border-gray-200 px-6 py-5 bg-white">
+        <div class="flex justify-between items-end mb-4">
+            <h3 class="text-[13px] font-extrabold text-gray-800 uppercase tracking-wider">Expense By Category</h3>
         </div>
-
-        <div class="border-t border-gray-200 px-6 py-5 bg-white">
-            <div class="flex justify-between items-end mb-4">
-                <h3 class="text-[13px] font-extrabold text-gray-800 uppercase tracking-wider">Expense By Category</h3>
-            </div>
-            <div class="bg-gray-50 rounded-xl p-3 mb-4 border border-gray-100">
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <div class="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-0.5">Income</div>
-                        <div class="relative flex items-center">
-                            <span class="text-gray-500 font-medium mr-1">$</span>
-                            <input type="number" id="monthly-income-input"
-                                   onfocus="this.classList.remove('blur-[5px]')"
-                                   onblur="this.classList.add('blur-[5px]')"
-                                   class="bg-transparent text-green-600 font-bold text-lg w-full outline-none blur-[5px] transition-all duration-300 cursor-pointer"
-                                   placeholder="0.00" onchange="updateIncome()">
-                        </div>
-                    </div>
-                    <div class="text-right">
-                        <div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-0.5">Spent</div>
-                        <div id="monthly-total" class="text-lg font-bold text-[#ff3b30] leading-none mt-1">$0.00</div>
-                    </div>
-                    <div class="col-span-2 pt-2 border-t border-gray-200 mt-1 flex justify-between items-center">
-                        <div class="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Remaining Balance</div>
-                        <div id="remaining-balance" onclick="this.classList.remove('blur-[5px]')" class="text-xl font-bold text-gray-900 blur-[5px] transition-all duration-300 cursor-pointer select-none" title="Tap to toggle visibility">$0.00</div>
+        <div class="bg-gray-50 rounded-xl p-3 mb-4 border border-gray-100">
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <div class="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-0.5">Income</div>
+                    <div class="relative flex items-center">
+                        <span class="text-gray-500 font-medium mr-1">$</span>
+                        <input type="number" id="monthly-income-input"
+                            onfocus="this.classList.remove('blur-[5px]')"
+                            onblur="this.classList.add('blur-[5px]')"
+                            class="bg-transparent text-green-600 font-bold text-lg w-full outline-none blur-[5px] transition-all duration-300 cursor-pointer"
+                            placeholder="0.00" onchange="updateIncome()">
                     </div>
                 </div>
-            </div>
-            <div id="category-list" class="w-full pb-2 pt-4 mt-2">
-                <div class="text-sm text-center text-gray-400 py-4 italic w-full" id="loading-state">Connecting...</div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Auth Banner (shown on desktop when auth fails) -->
-    <div id="auth-banner" class="hidden fixed bottom-4 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-xs rounded-xl shadow-2xl px-5 py-4 z-50 max-w-sm w-full mx-4">
-        <p class="font-bold mb-1">⚠️ Browser is blocking database access</p>
-        <p class="text-gray-300 mb-3 leading-relaxed">Your browser's privacy settings are preventing the secure connection. To fix this, open your browser's privacy/cookie settings and allow cross-site storage for this page.</p>
-        <button onclick="retryAuth()" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 rounded-lg text-xs transition-colors">
-            Tap Here to Retry Connection
-        </button>
-    </div>
-
-    <!-- Category Manager Modal -->
-    <div id="category-modal" class="fixed inset-0 bg-black/50 hidden z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-        <div class="bg-white rounded-2xl shadow-xl w-full max-w-[340px] overflow-hidden flex flex-col max-h-[80vh]">
-            <div class="px-5 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-                <h3 class="font-bold text-gray-800">Manage Categories</h3>
-                <button onclick="closeCategoryManager()" class="text-gray-400 hover:text-gray-600 focus:outline-none">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                </button>
-            </div>
-            <div class="p-4 border-b border-gray-100 flex space-x-2">
-                <input type="text" id="new-category-input" class="flex-1 bg-white border border-gray-200 text-gray-900 text-sm rounded-lg focus:ring-red-500 focus:border-red-500 block p-2 outline-none shadow-sm" placeholder="New category name...">
-                <button id="add-category-btn" onclick="handleAddCategory(this)" class="bg-[#ff3b30] hover:bg-red-600 text-white text-sm font-medium px-4 rounded-lg transition-colors shadow-sm focus:ring-2 focus:ring-red-300 outline-none">Add</button>
-            </div>
-            <ul id="category-manager-list" class="overflow-y-auto p-4 space-y-2 flex-1"></ul>
-        </div>
-    </div>
-
-    <!-- Sync Manager Modal -->
-    <div id="sync-modal" class="fixed inset-0 bg-black/50 hidden z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-        <div class="bg-white rounded-2xl shadow-xl w-full max-w-[340px] overflow-hidden flex flex-col">
-            <div class="px-5 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-                <h3 class="font-bold text-gray-800">Device Sync</h3>
-                <button onclick="closeSyncModal()" class="text-gray-400 hover:text-gray-600 focus:outline-none">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                </button>
-            </div>
-            <div class="p-5">
-                <p class="text-xs text-gray-500 mb-4 leading-relaxed">To view and edit your data across your iPhone, MacBook, and Tablet, create a secret <strong>Sync Passcode</strong>.</p>
-                <p class="text-xs text-gray-500 mb-4 leading-relaxed">Enter the exact same passcode on all your devices to link them to the same expense history.</p>
-                <input type="text" id="sync-code-input" class="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-3 outline-none shadow-sm mb-4" placeholder="Enter a secret passcode...">
-                <button onclick="applySyncCode()" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-lg text-sm px-5 py-3 text-center transition-colors shadow-sm focus:ring-4 focus:ring-blue-300 outline-none">Link Device</button>
+                <div class="text-right">
+                    <div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-0.5">Spent</div>
+                    <div id="monthly-total" class="text-lg font-bold text-[#ff3b30] leading-none mt-1">$0.00</div>
+                </div>
+                <div class="col-span-2 pt-2 border-t border-gray-200 mt-1 flex justify-between items-center">
+                    <div class="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Remaining Balance</div>
+                    <div id="remaining-balance" onclick="this.classList.remove('blur-[5px]')"
+                        class="text-xl font-bold text-gray-900 blur-[5px] transition-all duration-300 cursor-pointer select-none"
+                        title="Tap to toggle visibility">$0.00</div>
+                </div>
             </div>
         </div>
+
+        <!-- Status / Pie Chart -->
+        <div id="category-list" class="w-full pb-2 pt-4 mt-2">
+            <div id="loading-state" class="text-sm text-center text-gray-400 py-4 italic w-full">Connecting…</div>
+        </div>
     </div>
+</div>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import {
-            getAuth,
-            signInAnonymously,
-            signInWithCustomToken,
-            onAuthStateChanged,
-            setPersistence,
-            inMemoryPersistence
-        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import {
-            getFirestore,
-            collection,
-            addDoc,
-            deleteDoc,
-            doc,
-            onSnapshot,
-            setDoc,
-            getDocs
-        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+<!-- ===================== MODALS ===================== -->
 
-        // =========================================================================
-        // FIREBASE CONFIGURATION
-        // =========================================================================
-        let firebaseConfig;
-        if (typeof __firebase_config !== 'undefined') {
-            firebaseConfig = typeof __firebase_config === 'string'
-                ? JSON.parse(__firebase_config)
-                : __firebase_config;
+<!-- Category Manager Modal -->
+<div id="category-modal" class="fixed inset-0 bg-black/50 hidden z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-[340px] overflow-hidden flex flex-col max-h-[80vh]">
+        <div class="px-5 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+            <h3 class="font-bold text-gray-800">Manage Categories</h3>
+            <button onclick="closeCategoryManager()" class="text-gray-400 hover:text-gray-600 focus:outline-none">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <div class="p-4 border-b border-gray-100 flex space-x-2">
+            <input type="text" id="new-category-input" class="flex-1 bg-white border border-gray-200 text-gray-900 text-sm rounded-lg focus:ring-red-500 focus:border-red-500 block p-2 outline-none shadow-sm" placeholder="New category name...">
+            <button id="add-category-btn" onclick="handleAddCategory(this)" class="bg-[#ff3b30] hover:bg-red-600 text-white text-sm font-medium px-4 rounded-lg transition-colors shadow-sm focus:ring-2 focus:ring-red-300 outline-none">Add</button>
+        </div>
+        <ul id="category-manager-list" class="overflow-y-auto p-4 space-y-2 flex-1"></ul>
+    </div>
+</div>
+
+<!-- Sync Modal -->
+<div id="sync-modal" class="fixed inset-0 bg-black/50 hidden z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-[340px] overflow-hidden flex flex-col">
+        <div class="px-5 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+            <h3 class="font-bold text-gray-800">Device Sync</h3>
+            <button onclick="closeSyncModal()" class="text-gray-400 hover:text-gray-600 focus:outline-none">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <div class="p-5">
+            <p class="text-xs text-gray-500 mb-3 leading-relaxed">Create a secret <strong>Sync Passcode</strong> and enter it on all your devices to share the same expense data.</p>
+            <p class="text-xs text-gray-400 mb-4 leading-relaxed">Leave blank and tap "Link Device" to use your personal private account (not shared).</p>
+            <input type="text" id="sync-code-input" class="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-3 outline-none shadow-sm mb-4" placeholder="Enter a secret passcode (optional)…">
+            <button onclick="applySyncCode()" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-lg text-sm px-5 py-3 text-center transition-colors shadow-sm focus:ring-4 focus:ring-blue-300 outline-none">Link Device</button>
+        </div>
+    </div>
+</div>
+
+<!-- ===================== FIREBASE + APP LOGIC ===================== -->
+<script type="module">
+
+// =============================================================================
+// GITHUB PAGES FIX — WHY THIS VERSION IS DIFFERENT:
+//
+// When hosted on GitHub Pages (*.github.io), the page is served from a domain
+// that is NOT firebase's authDomain. This causes two problems:
+//
+//  1. Firebase Auth's redirect/popup flows fail because the origin isn't
+//     whitelisted (and can't be, without a paid Firebase plan).
+//
+//  2. Safari + Firefox block cross-origin IndexedDB/cookies that Firebase
+//     normally uses to persist anonymous auth sessions, so every page load
+//     creates a brand-new anonymous UID — meaning your data is gone.
+//
+// THE SOLUTION:
+//  - Use the Firebase REST API directly (no SDK auth module needed).
+//  - Sign in anonymously via the REST endpoint — this only needs your
+//    Web API Key and works from ANY domain, including github.io.
+//  - Persist the Firebase UID + ID Token in localStorage ourselves, so
+//    returning visitors keep the same identity across page loads on all devices.
+//  - Use the Firestore REST API for reads/writes so we never need a redirect.
+//  - The Sync passcode overrides the stored UID with a shared namespace,
+//    letting all devices read/write the same Firestore path.
+// =============================================================================
+
+// ─── YOUR FIREBASE PROJECT SETTINGS ──────────────────────────────────────────
+// Replace these values with your own from the Firebase Console:
+//   Project Settings → General → Your apps → Web app → SDK snippet → Config
+const FIREBASE_API_KEY   = "AIzaSyBoUPFJZn5vnREHkc3PRjwAoooMGy6Vqgk";
+const FIREBASE_PROJECT   = "new-tracker-552fb";
+// ─────────────────────────────────────────────────────────────────────────────
+
+const LS_UID_KEY   = "et_uid";
+const LS_TOKEN_KEY = "et_token";
+const LS_SYNC_KEY  = "et_sync";
+
+let uid        = null;   // Firebase anonymous UID
+let idToken    = null;   // Firebase ID token for Firestore REST auth
+let syncId     = null;   // Custom sync namespace (from passcode)
+let tokenTimer = null;
+
+// The Firestore collection root for this user
+function fsRoot() {
+    const user = syncId ? `sync_${syncId}` : uid;
+    return `projects/${FIREBASE_PROJECT}/databases/(default)/documents/artifacts/expense-tracker-gh/users/${user}`;
+}
+
+// ─── REST AUTH ────────────────────────────────────────────────────────────────
+
+async function signInAnonymouslyREST() {
+    const url = `https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${FIREBASE_API_KEY}`;
+    const res  = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ returnSecureToken: true })
+    });
+    if (!res.ok) throw new Error(`Auth failed: ${res.status} ${await res.text()}`);
+    return res.json(); // { idToken, localId, expiresIn, refreshToken }
+}
+
+async function refreshTokenREST(refreshToken) {
+    const url = `https://securetoken.googleapis.com/v1/token?key=${FIREBASE_API_KEY}`;
+    const res  = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: `grant_type=refresh_token&refresh_token=${encodeURIComponent(refreshToken)}`
+    });
+    if (!res.ok) throw new Error(`Refresh failed: ${res.status}`);
+    const data = await res.json();
+    return { idToken: data.id_token, refreshToken: data.refresh_token, expiresIn: data.expires_in };
+}
+
+// Schedule a token refresh 5 min before expiry
+function scheduleTokenRefresh(expiresInSecs, refreshToken) {
+    if (tokenTimer) clearTimeout(tokenTimer);
+    const ms = (parseInt(expiresInSecs, 10) - 300) * 1000;
+    tokenTimer = setTimeout(async () => {
+        try {
+            const data = await refreshTokenREST(refreshToken);
+            idToken = data.idToken;
+            try { localStorage.setItem(LS_TOKEN_KEY, JSON.stringify({ idToken: data.idToken, refreshToken: data.refreshToken })); } catch(_){}
+            scheduleTokenRefresh(data.expiresIn, data.refreshToken);
+        } catch(e) { console.warn("Token refresh failed:", e); }
+    }, Math.max(ms, 60000));
+}
+
+async function initAuth() {
+    setLoading("Connecting…");
+
+    // Try to restore session from localStorage (works on all browsers that allow LS)
+    let storedTokenData = null;
+    try {
+        const raw = localStorage.getItem(LS_TOKEN_KEY);
+        if (raw) storedTokenData = JSON.parse(raw);
+        const storedUid = localStorage.getItem(LS_UID_KEY);
+        if (storedUid) uid = storedUid;
+
+        const storedSync = localStorage.getItem(LS_SYNC_KEY);
+        if (storedSync) syncId = storedSync;
+    } catch(_) { /* localStorage blocked — that's OK, we just re-auth every load */ }
+
+    // Restore sync UI
+    if (syncId) {
+        const inp = document.getElementById('sync-code-input');
+        if (inp) inp.value = syncId;
+    }
+
+    if (storedTokenData && storedTokenData.refreshToken) {
+        try {
+            // Refresh the token so we have a valid one immediately
+            const data = await refreshTokenREST(storedTokenData.refreshToken);
+            idToken = data.idToken;
+            scheduleTokenRefresh(data.expiresIn, data.refreshToken);
+            try { localStorage.setItem(LS_TOKEN_KEY, JSON.stringify({ idToken: data.idToken, refreshToken: data.refreshToken })); } catch(_){}
+            // uid was restored above from LS_UID_KEY
+            await onAuthReady();
+            return;
+        } catch(e) {
+            console.warn("Stored token refresh failed, re-signing in:", e);
+        }
+    }
+
+    // Fresh sign-in
+    try {
+        const data = await signInAnonymouslyREST();
+        uid     = data.localId;
+        idToken = data.idToken;
+        scheduleTokenRefresh(data.expiresIn, data.refreshToken);
+        try {
+            localStorage.setItem(LS_UID_KEY,   uid);
+            localStorage.setItem(LS_TOKEN_KEY, JSON.stringify({ idToken: data.idToken, refreshToken: data.refreshToken }));
+        } catch(_){}
+        await onAuthReady();
+    } catch(e) {
+        console.error("Auth error:", e);
+        setLoading(`<div class="bg-red-50 border border-red-200 rounded-lg p-3 text-xs text-left">
+            <span class="text-red-700 font-bold block mb-1">Connection failed</span>
+            <span class="text-red-600 block mb-2">${e.message}</span>
+            <button onclick="window._retryAuth()" class="w-full bg-red-500 text-white font-semibold py-2 rounded-lg">Retry</button>
+        </div>`);
+    }
+}
+
+window._retryAuth = function() { initAuth(); };
+
+// ─── FIRESTORE REST API ───────────────────────────────────────────────────────
+
+const FS_BASE = `https://firestore.googleapis.com/v1`;
+
+function fsHeaders() {
+    return { "Authorization": `Bearer ${idToken}`, "Content-Type": "application/json" };
+}
+
+// Convert a plain JS object → Firestore REST document fields
+function toFsFields(obj) {
+    const fields = {};
+    for (const [k, v] of Object.entries(obj)) {
+        if (v === null || v === undefined) continue;
+        if (typeof v === "string")  fields[k] = { stringValue: v };
+        else if (typeof v === "number") fields[k] = { doubleValue: v };
+        else if (typeof v === "boolean") fields[k] = { booleanValue: v };
+        else if (Array.isArray(v)) {
+            fields[k] = { arrayValue: { values: v.map(s => ({ stringValue: s })) } };
+        }
+    }
+    return fields;
+}
+
+// Convert Firestore REST fields → plain JS object
+function fromFsFields(fields) {
+    if (!fields) return {};
+    const obj = {};
+    for (const [k, fv] of Object.entries(fields)) {
+        if (fv.stringValue  !== undefined) obj[k] = fv.stringValue;
+        else if (fv.doubleValue  !== undefined) obj[k] = fv.doubleValue;
+        else if (fv.integerValue !== undefined) obj[k] = Number(fv.integerValue);
+        else if (fv.booleanValue !== undefined) obj[k] = fv.booleanValue;
+        else if (fv.arrayValue)  obj[k] = (fv.arrayValue.values || []).map(v => v.stringValue || "");
+        else if (fv.timestampValue) obj[k] = fv.timestampValue;
+    }
+    return obj;
+}
+
+// Extract the document ID from a Firestore REST name path
+function docIdFromName(name) { return name.split("/").pop(); }
+
+async function fsGet(path) {
+    const res = await fetch(`${FS_BASE}/${path}`, { headers: fsHeaders() });
+    if (res.status === 404) return null;
+    if (!res.ok) throw new Error(`GET ${path} → ${res.status}`);
+    return res.json();
+}
+
+async function fsList(collPath) {
+    // Handles pagination automatically
+    let docs = [];
+    let pageToken = null;
+    do {
+        const url = `${FS_BASE}/${collPath}?pageSize=300${pageToken ? `&pageToken=${pageToken}` : ""}`;
+        const res = await fetch(url, { headers: fsHeaders() });
+        if (!res.ok) throw new Error(`LIST ${collPath} → ${res.status}`);
+        const data = await res.json();
+        if (data.documents) docs = docs.concat(data.documents);
+        pageToken = data.nextPageToken || null;
+    } while (pageToken);
+    return docs;
+}
+
+async function fsSet(path, fields, merge = false) {
+    // PATCH with updateMask for merge, otherwise full PUT-style PATCH
+    let url = `${FS_BASE}/${path}`;
+    if (merge) {
+        const keys = Object.keys(fields).map(k => `updateMask.fieldPaths=${encodeURIComponent(k)}`).join("&");
+        url += `?${keys}`;
+    }
+    const res = await fetch(url, {
+        method: "PATCH",
+        headers: fsHeaders(),
+        body: JSON.stringify({ fields })
+    });
+    if (!res.ok) throw new Error(`SET ${path} → ${res.status} ${await res.text()}`);
+    return res.json();
+}
+
+async function fsAdd(collPath, fields) {
+    const res = await fetch(`${FS_BASE}/${collPath}`, {
+        method: "POST",
+        headers: fsHeaders(),
+        body: JSON.stringify({ fields })
+    });
+    if (!res.ok) throw new Error(`ADD ${collPath} → ${res.status} ${await res.text()}`);
+    return res.json();
+}
+
+async function fsDelete(path) {
+    const res = await fetch(`${FS_BASE}/${path}`, { method: "DELETE", headers: fsHeaders() });
+    if (!res.ok && res.status !== 404) throw new Error(`DELETE ${path} → ${res.status}`);
+}
+
+// ─── POLLING (replaces onSnapshot) ───────────────────────────────────────────
+// GitHub Pages can't use WebSockets, so we poll every 15 s for changes.
+let pollTimer = null;
+
+function startPolling() {
+    if (pollTimer) clearInterval(pollTimer);
+    pollTimer = setInterval(loadAllData, 15000);
+}
+
+// ─── APP STATE ────────────────────────────────────────────────────────────────
+
+const defaultCategories = [
+    "Beer","Coffee bean and Milk","Contact lens","Data plan","Event",
+    "Family","Fitness","Food/Drinks","Gift","Grocery","Hair cut",
+    "Online shopping","Other","Parking","Travel","Vehicle Care"
+];
+
+let userCategories = [...defaultCategories];
+let expenses       = {};   // { "YYYY-MM-DD": [{id, category, amount, createdAt}, …] }
+let monthlyIncomes = {};   // { "YYYY-MM": number }
+
+let currentDate    = new Date();
+let currentMonth   = currentDate.getMonth();
+let currentYear    = currentDate.getFullYear();
+let selectedDateStr = formatDate(currentDate);
+
+const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const DAY_NAMES   = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+
+// ─── LOAD ALL DATA ────────────────────────────────────────────────────────────
+
+async function loadAllData() {
+    await Promise.all([loadExpenses(), loadIncomes(), loadCategories()]);
+}
+
+async function loadExpenses() {
+    try {
+        const docs = await fsList(`${fsRoot()}/expenses`);
+        expenses = {};
+        const sorted = docs.map(d => ({ id: docIdFromName(d.name), ...fromFsFields(d.fields) }))
+                           .sort((a, b) => (a.createdAt || "").localeCompare(b.createdAt || ""));
+        sorted.forEach(({ id, date, category, amount }) => {
+            if (!date) return;
+            if (!expenses[date]) expenses[date] = [];
+            expenses[date].push({ id, category, amount: Number(amount) });
+        });
+    } catch(e) { console.error("loadExpenses:", e); }
+    renderAll();
+}
+
+async function loadIncomes() {
+    try {
+        const docs = await fsList(`${fsRoot()}/incomes`);
+        monthlyIncomes = {};
+        docs.forEach(d => {
+            const id   = docIdFromName(d.name);
+            const data = fromFsFields(d.fields);
+            monthlyIncomes[id] = Number(data.amount) || 0;
+        });
+    } catch(e) { console.error("loadIncomes:", e); }
+}
+
+async function loadCategories() {
+    try {
+        const doc = await fsGet(`${fsRoot()}/preferences/categories`);
+        if (doc && doc.fields && doc.fields.list) {
+            const raw = (doc.fields.list.arrayValue && doc.fields.list.arrayValue.values) || [];
+            userCategories = raw.map(v => v.stringValue || "").filter(Boolean).sort((a,b) => a.localeCompare(b));
         } else {
-            firebaseConfig = {
-                apiKey: "AIzaSyBoUPFJZn5vnREHkc3PRjwAoooMGy6Vqgk",
-                authDomain: "new-tracker-552fb.firebaseapp.com",
-                projectId: "new-tracker-552fb",
-                storageBucket: "new-tracker-552fb.firebasestorage.app",
-                messagingSenderId: "579534758798",
-                appId: "1:579534758798:web:28b2316c74467dc2e03adf"
-            };
+            userCategories = [...defaultCategories];
         }
+    } catch(e) {
+        userCategories = [...defaultCategories];
+    }
+    renderCategoryDropdown();
+    if (!document.getElementById('category-modal').classList.contains('hidden')) renderCategoryManagerList();
+}
 
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+// ─── WRITE OPERATIONS ─────────────────────────────────────────────────────────
 
-        let currentUser = null;
-        let customSyncId = null;
-        let unsubscribeSnap = null;
-        let unsubscribeIncomesSnap = null;
-        let unsubscribeCategoriesSnap = null;
+window.addExpense = async function() {
+    if (!uid) { alert("Not connected yet. Please wait a moment and try again."); return; }
+    const catEl    = document.getElementById('expense-category');
+    const customEl = document.getElementById('custom-category');
+    const amtEl    = document.getElementById('expense-amount');
 
-        function getWorkingUserId() {
-            if (!currentUser) return null;
-            return customSyncId ? `sync_${customSyncId}` : currentUser.uid;
-        }
+    let category = catEl.value;
+    if (category === 'Other') {
+        const cv = customEl.value.trim();
+        category = cv || 'Other';
+    }
+    const amount = parseFloat(amtEl.value);
+    if (isNaN(amount) || amount <= 0) {
+        amtEl.classList.add('border-red-500','animate-pulse');
+        setTimeout(() => amtEl.classList.remove('border-red-500','animate-pulse'), 1000);
+        return;
+    }
+    try {
+        await fsAdd(`${fsRoot()}/expenses`, toFsFields({
+            date: selectedDateStr,
+            category,
+            amount,
+            createdAt: new Date().toISOString()
+        }));
+        amtEl.value = '';
+        customEl.value = '';
+        customEl.classList.add('hidden');
+        if (userCategories.length) catEl.value = userCategories[0];
+        await loadExpenses();
+    } catch(e) { console.error("addExpense:", e); alert("Error saving expense: " + e.message); }
+};
 
-        // =========================================================================
-        // FIX 1: Robust cross-browser sign-in with multiple fallback strategies.
-        // Safari/Mac block IndexedDB persistence. We try inMemoryPersistence first
-        // (which avoids IndexedDB entirely), then fall back gracefully.
-        // =========================================================================
-        async function attemptSignIn() {
-            try {
-                // ALWAYS use inMemoryPersistence — avoids IndexedDB which Safari blocks
-                await setPersistence(auth, inMemoryPersistence);
-            } catch (persistenceError) {
-                // Some older browsers may not support even inMemoryPersistence setting;
-                // continue anyway — signIn may still work
-                console.warn("setPersistence failed (non-fatal):", persistenceError);
-            }
+window.deleteSingleExpense = async function(expId) {
+    if (!expId) return;
+    try {
+        await fsDelete(`${fsRoot()}/expenses/${expId}`);
+        await loadExpenses();
+    } catch(e) { console.error("deleteSingleExpense:", e); }
+};
 
-            // Strategy 1: Use environment-provided custom token (Claude artifact context)
-            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                try {
-                    await signInWithCustomToken(auth, __initial_auth_token);
-                    return; // Success
-                } catch (tokenError) {
-                    console.warn("Custom token sign-in failed, trying anonymous:", tokenError.code);
-                }
-            }
+window.deleteCategoryExpenses = async function(category) {
+    const toDelete = (expenses[selectedDateStr] || []).filter(e => e.category === category);
+    for (const exp of toDelete) {
+        try { await fsDelete(`${fsRoot()}/expenses/${exp.id}`); } catch(e) { console.error(e); }
+    }
+    await loadExpenses();
+};
 
-            // Strategy 2: Anonymous sign-in
-            try {
-                await signInAnonymously(auth);
-            } catch (anonError) {
-                // FIX 2: Instead of crashing, show a helpful retry banner
-                console.error("Anonymous sign-in failed:", anonError.code, anonError.message);
-                showAuthError(anonError);
-            }
-        }
+window.updateIncome = async function() {
+    if (!uid) return;
+    const input   = document.getElementById('monthly-income-input');
+    const amount  = parseFloat(input.value) || 0;
+    const monthId = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
+    try {
+        await fsSet(`${fsRoot()}/incomes/${monthId}`, toFsFields({ amount }));
+        monthlyIncomes[monthId] = amount;
+        updateMonthlySummaryUI();
+    } catch(e) { console.error("updateIncome:", e); }
+};
 
-        // FIX 3: Show a non-blocking banner instead of mutating the loading state only
-        function showAuthError(error) {
-            const loadingState = document.getElementById('loading-state');
-            if (loadingState) {
-                loadingState.style.display = 'block';
-                loadingState.innerHTML = `
-                    <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 text-left text-xs">
-                        <span class="text-amber-700 font-bold block mb-1">Connection blocked by browser</span>
-                        <span class="text-amber-600 block mb-2">Your browser's privacy settings are preventing the database connection.</span>
-                        <button onclick="window.retryAuth()" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-semibold py-2 rounded-lg transition-colors mt-1">
-                            Tap to Retry
-                        </button>
-                    </div>
-                `;
-            }
-        }
+// ─── CATEGORY MANAGEMENT ──────────────────────────────────────────────────────
 
-        // FIX 4: Expose retryAuth globally so the inline button and banner can call it
-        window.retryAuth = async function() {
-            const loadingState = document.getElementById('loading-state');
-            if (loadingState) {
-                loadingState.style.display = 'block';
-                loadingState.innerText = "Retrying connection...";
-            }
-            document.getElementById('auth-banner').classList.add('hidden');
-            await attemptSignIn();
-        };
+async function saveCategories(list) {
+    await fsSet(`${fsRoot()}/preferences/categories`, toFsFields({ list }));
+}
 
-        // Start auth on load
-        attemptSignIn();
-
-        onAuthStateChanged(auth, (user) => {
-            currentUser = user;
-            if (user) {
-                document.getElementById('auth-banner').classList.add('hidden');
-                autoDeleteOldData(getWorkingUserId());
-                loadExpenses(getWorkingUserId());
-            } else {
-                expenses = {};
-                monthlyIncomes = {};
-                userCategories = [...defaultCategories];
-                renderCategoryDropdown();
-                renderCalendar();
-                updateSelectedDayUI();
-                updateDailyExpensesUI();
-                updateMonthlySummaryUI();
-            }
-        });
-
-        // =========================================================================
-        // APP STATE
-        // =========================================================================
-        const defaultCategories = [
-            "Food/Drinks","Parking","Grocery","Event","Beer","Online shopping",
-            "Vehicle Care","Data plan","Gift","Fitness","Family","Contact lens",
-            "Hair cut","Coffee bean and Milk","Travel","Other"
-        ].sort((a, b) => a.localeCompare(b));
-
-        let userCategories = [...defaultCategories];
-        let expenses = {};
-        let monthlyIncomes = {};
-        let currentDate = new Date();
-        let currentMonth = currentDate.getMonth();
-        let currentYear = currentDate.getFullYear();
-        let selectedDateStr = formatDate(currentDate);
-
-        const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-        const dayNames = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
-
-        // =========================================================================
-        // DATA FUNCTIONS
-        // =========================================================================
-        async function autoDeleteOldData(userId) {
-            if (!userId) return;
-            const oneYearAgo = new Date();
-            oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-            const cutoffDateStr = formatDate(oneYearAgo);
-            const cutoffMonthStr = cutoffDateStr.substring(0, 7);
-            try {
-                const expensesRef = collection(db, 'artifacts', appId, 'users', userId, 'expenses');
-                const expSnapshot = await getDocs(expensesRef);
-                expSnapshot.forEach((document) => {
-                    const data = document.data();
-                    if (data.date && data.date < cutoffDateStr) {
-                        deleteDoc(doc(db, 'artifacts', appId, 'users', userId, 'expenses', document.id));
-                    }
-                });
-                const incomesRef = collection(db, 'artifacts', appId, 'users', userId, 'incomes');
-                const incSnapshot = await getDocs(incomesRef);
-                incSnapshot.forEach((document) => {
-                    if (document.id < cutoffMonthStr) {
-                        deleteDoc(doc(db, 'artifacts', appId, 'users', userId, 'incomes', document.id));
-                    }
-                });
-            } catch (error) {
-                console.error("Error pruning old data:", error);
-            }
-        }
-
-        function loadExpenses(userId) {
-            if (unsubscribeSnap) unsubscribeSnap();
-            if (unsubscribeIncomesSnap) unsubscribeIncomesSnap();
-            if (unsubscribeCategoriesSnap) unsubscribeCategoriesSnap();
-
-            const expensesRef = collection(db, 'artifacts', appId, 'users', userId, 'expenses');
-
-            unsubscribeSnap = onSnapshot(expensesRef, (snapshot) => {
-                expenses = {};
-                let tempExps = [];
-                snapshot.forEach((document) => {
-                    tempExps.push({ id: document.id, ...document.data() });
-                });
-                tempExps.sort((a, b) => {
-                    const getMs = (val) => {
-                        if (!val) return 0;
-                        if (typeof val.toMillis === 'function') return val.toMillis();
-                        if (typeof val.toDate === 'function') return val.toDate().getTime();
-                        const ms = new Date(val).getTime();
-                        return isNaN(ms) ? 0 : ms;
-                    };
-                    return getMs(a.createdAt) - getMs(b.createdAt);
-                });
-                tempExps.forEach(data => {
-                    if (!expenses[data.date]) expenses[data.date] = [];
-                    expenses[data.date].push({ id: data.id, category: data.category, amount: data.amount });
-                });
-                const loadingState = document.getElementById('loading-state');
-                if (loadingState) loadingState.style.display = 'none';
-                renderCalendar();
-                updateSelectedDayUI();
-                updateDailyExpensesUI();
-                updateMonthlySummaryUI();
-            }, (error) => {
-                console.error("Snapshot Error:", error);
-                const loadingState = document.getElementById('loading-state');
-                if (loadingState) {
-                    loadingState.style.display = 'block';
-                    loadingState.innerHTML = `<div class="text-red-500 text-xs font-bold bg-red-50 p-2 rounded border border-red-100">Database Error: ${error.message}<br>Please check your Firebase Security Rules.</div>`;
-                }
-            });
-
-            const incomesRef = collection(db, 'artifacts', appId, 'users', userId, 'incomes');
-            unsubscribeIncomesSnap = onSnapshot(incomesRef, (snapshot) => {
-                monthlyIncomes = {};
-                snapshot.forEach((d) => { monthlyIncomes[d.id] = d.data().amount || 0; });
-                updateMonthlySummaryUI();
-            }, (error) => console.error("Incomes Snapshot Error:", error));
-
-            const categoriesRef = doc(db, 'artifacts', appId, 'users', userId, 'preferences', 'categories');
-            unsubscribeCategoriesSnap = onSnapshot(categoriesRef, (docSnap) => {
-                if (docSnap.exists() && docSnap.data().list) {
-                    userCategories = docSnap.data().list.sort((a, b) => a.localeCompare(b));
-                } else {
-                    userCategories = [...defaultCategories];
-                }
-                renderCategoryDropdown();
-                if (!document.getElementById('category-modal').classList.contains('hidden')) {
-                    renderCategoryManagerList();
-                }
-            }, (error) => console.error("Categories Snapshot Error:", error));
-        }
-
-        // =========================================================================
-        // UTILITY
-        // =========================================================================
-        function formatDate(date) {
-            const yyyy = date.getFullYear();
-            const mm = String(date.getMonth() + 1).padStart(2, '0');
-            const dd = String(date.getDate()).padStart(2, '0');
-            return `${yyyy}-${mm}-${dd}`;
-        }
-
-        function formatCurrency(amount) {
-            return '$' + parseFloat(amount).toFixed(2);
-        }
-
-        // =========================================================================
-        // UI ACTIONS
-        // =========================================================================
-        window.changeMonth = function(direction) {
-            currentMonth += direction;
-            if (currentMonth > 11) { currentMonth = 0; currentYear++; }
-            else if (currentMonth < 0) { currentMonth = 11; currentYear--; }
-            window.selectDate(new Date(currentYear, currentMonth, 1));
-        };
-
-        window.selectDate = function(dateObj) {
-            currentDate = dateObj;
-            selectedDateStr = formatDate(currentDate);
-            renderCalendar();
-            updateSelectedDayUI();
-            updateDailyExpensesUI();
-            updateMonthlySummaryUI();
-        };
-
-        window.toggleCustomCategory = function() {
-            const categorySelect = document.getElementById('expense-category');
-            const customInput = document.getElementById('custom-category');
-            if (categorySelect.value === 'Other') {
-                customInput.classList.remove('hidden');
-                customInput.focus();
-            } else {
-                customInput.classList.add('hidden');
-                customInput.value = '';
-            }
-        };
-
-        window.addExpense = async function() {
-            if (!currentUser) {
-                await window.retryAuth();
-                return;
-            }
-            const categorySelect = document.getElementById('expense-category');
-            const customInput = document.getElementById('custom-category');
-            const amountInput = document.getElementById('expense-amount');
-            let category = categorySelect.value;
-            if (category === 'Other') {
-                const customVal = customInput.value.trim();
-                category = customVal !== '' ? customVal : 'Other';
-            }
-            const amount = parseFloat(amountInput.value);
-            if (isNaN(amount) || amount <= 0) {
-                amountInput.classList.add('border-red-500', 'animate-pulse');
-                setTimeout(() => amountInput.classList.remove('border-red-500', 'animate-pulse'), 1000);
-                return;
-            }
-            try {
-                const expensesRef = collection(db, 'artifacts', appId, 'users', getWorkingUserId(), 'expenses');
-                await addDoc(expensesRef, {
-                    date: selectedDateStr,
-                    category: category,
-                    amount: amount,
-                    createdAt: new Date().toISOString()
-                });
-                amountInput.value = '';
-                customInput.value = '';
-                customInput.classList.add('hidden');
-                if (userCategories.length > 0) categorySelect.value = userCategories[0];
-            } catch (error) {
-                console.error("Error adding document: ", error);
-            }
-        };
-
-        window.deleteCategoryExpenses = async function(category) {
-            if (!currentUser) return;
-            const dailyExps = expenses[selectedDateStr] || [];
-            const expsToDelete = dailyExps.filter(exp => exp.category === category);
-            for (const exp of expsToDelete) {
-                if (!exp || !exp.id) continue;
-                try {
-                    await deleteDoc(doc(db, 'artifacts', appId, 'users', getWorkingUserId(), 'expenses', exp.id));
-                } catch (error) {
-                    console.error("Error deleting document: ", error);
-                }
-            }
-        };
-
-        window.deleteSingleExpense = async function(expId) {
-            if (!currentUser || !expId) return;
-            try {
-                await deleteDoc(doc(db, 'artifacts', appId, 'users', getWorkingUserId(), 'expenses', expId));
-            } catch (error) {
-                console.error("Error deleting single document: ", error);
-            }
-        };
-
-        document.getElementById('expense-amount').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') window.addExpense();
-        });
-
-        document.addEventListener('click', function(e) {
-            const remainingEl = document.getElementById('remaining-balance');
-            if (remainingEl && e.target !== remainingEl) {
-                remainingEl.classList.add('blur-[5px]');
-            }
-        });
-
-        window.updateIncome = async function() {
-            if (!currentUser) return;
-            const input = document.getElementById('monthly-income-input');
-            const newAmount = parseFloat(input.value) || 0;
-            const targetMonthPrefix = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
-            try {
-                const docRef = doc(db, 'artifacts', appId, 'users', getWorkingUserId(), 'incomes', targetMonthPrefix);
-                await setDoc(docRef, { amount: newAmount }, { merge: true });
-            } catch (error) {
-                console.error("Error updating income: ", error);
-            }
-        };
-
-        // =========================================================================
-        // RENDER FUNCTIONS
-        // =========================================================================
-        function renderCalendar() {
-            document.getElementById('month-display').innerText = monthNames[currentMonth];
-            document.getElementById('year-display').innerText = currentYear;
-            const yearDisplay = document.getElementById('year-display');
-            if (currentYear !== new Date().getFullYear()) {
-                yearDisplay.classList.remove('hidden');
-            } else {
-                yearDisplay.classList.add('hidden');
-            }
-            const daysContainer = document.getElementById('calendar-days');
-            daysContainer.innerHTML = '';
-            const firstDayIndex = new Date(currentYear, currentMonth, 1).getDay();
-            const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-            for (let i = 0; i < firstDayIndex; i++) {
-                daysContainer.appendChild(document.createElement('div'));
-            }
-            for (let i = 1; i <= daysInMonth; i++) {
-                const dayDate = new Date(currentYear, currentMonth, i);
-                const dayStr = formatDate(dayDate);
-                const isSelected = dayStr === selectedDateStr;
-                const hasExpenses = expenses[dayStr] && expenses[dayStr].length > 0;
-                const dayBtn = document.createElement('button');
-                dayBtn.onclick = () => window.selectDate(dayDate);
-                let classes = "relative w-9 h-9 mx-auto flex items-center justify-center rounded-full text-[15px] transition-all duration-200 outline-none ";
-                if (isSelected) {
-                    classes += "bg-[#ff3b30] text-white font-bold shadow-md transform scale-105";
-                } else {
-                    classes += "text-gray-700 hover:bg-gray-200";
-                }
-                dayBtn.className = classes;
-                dayBtn.innerText = i;
-                if (hasExpenses && !isSelected) {
-                    const dot = document.createElement('div');
-                    dot.className = "absolute bottom-1 w-1 h-1 bg-red-400 rounded-full";
-                    dayBtn.appendChild(dot);
-                }
-                daysContainer.appendChild(dayBtn);
-            }
-        }
-
-        function updateSelectedDayUI() {
-            const dayName = dayNames[currentDate.getDay()];
-            const monthName = monthNames[currentDate.getMonth()];
-            const dayNum = currentDate.getDate();
-            document.getElementById('selected-date-text').innerText = `${dayName}, ${monthName} ${dayNum}`;
-            let dailyTotal = 0;
-            if (expenses[selectedDateStr]) {
-                dailyTotal = expenses[selectedDateStr].reduce((sum, item) => sum + item.amount, 0);
-            }
-            document.getElementById('daily-total').innerText = formatCurrency(dailyTotal);
-        }
-
-        function updateDailyExpensesUI() {
-            const listContainer = document.getElementById('daily-expense-list');
-            listContainer.innerHTML = '';
-            const dailyExps = expenses[selectedDateStr] || [];
-            if (dailyExps.length === 0) return;
-            const categoryGroups = {};
-            dailyExps.forEach((exp) => {
-                if (!categoryGroups[exp.category]) categoryGroups[exp.category] = { total: 0, items: [] };
-                categoryGroups[exp.category].total += exp.amount;
-                categoryGroups[exp.category].items.push(exp);
-            });
-            Object.keys(categoryGroups).forEach((category, catIndex) => {
-                const group = categoryGroups[category];
-                const li = document.createElement('li');
-                li.className = "flex flex-col bg-gray-50 rounded-md border border-gray-100 overflow-hidden text-sm";
-                const countBadge = group.items.length > 1 ? `<span class="text-[10px] text-gray-400 bg-gray-200 px-1.5 py-0.5 rounded-md ml-1.5">x${group.items.length}</span>` : '';
-                const uniqueId = `cat-details-${catIndex}`;
-                const iconId = `cat-icon-${catIndex}`;
-                let itemsHtml = '';
-                group.items.forEach((item) => {
-                    itemsHtml += `
-                        <div class="flex justify-between items-center py-1.5 pl-9 pr-3 border-t border-gray-100 bg-gray-100/50 hover:bg-gray-200/50 transition-colors">
-                            <span class="text-gray-500 text-xs font-medium">${formatCurrency(item.amount)}</span>
-                            <button onclick="window.deleteSingleExpense('${item.id}'); event.stopPropagation();" class="text-gray-400 hover:text-red-500 focus:outline-none transition-colors" title="Delete this entry">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                            </button>
-                        </div>
-                    `;
-                });
-                const safeCat = category.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-                li.innerHTML = `
-                    <div class="flex justify-between items-center px-3 py-2 cursor-pointer hover:bg-gray-100 transition-colors" onclick="document.getElementById('${uniqueId}').classList.toggle('hidden'); document.getElementById('${iconId}').classList.toggle('rotate-180');">
-                        <div class="flex items-center">
-                            <svg id="${iconId}" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400 mr-1.5 transition-transform duration-200 ${group.items.length > 1 ? '' : 'opacity-40'}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                            </svg>
-                            <span class="text-gray-700 font-medium">${category}</span>
-                            ${countBadge}
-                        </div>
-                        <div class="flex items-center space-x-3">
-                            <span class="font-semibold text-gray-800">${formatCurrency(group.total)}</span>
-                            <button onclick="window.deleteCategoryExpenses('${safeCat}'); event.stopPropagation();" class="text-gray-400 hover:text-red-500 focus:outline-none transition-colors" title="Delete All ${category} Today">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
-                    <div id="${uniqueId}" class="hidden flex-col">${itemsHtml}</div>
-                `;
-                listContainer.appendChild(li);
-            });
-        }
-
-        window.currentPieSlices = [];
-
-        window.highlightLegendItem = function(index) {
-            document.querySelectorAll('.legend-item').forEach(el => {
-                el.classList.remove('bg-white', 'scale-[1.03]', 'shadow-md', 'border-gray-200', 'z-10', 'relative');
-                el.classList.add('border-transparent');
-            });
-            const target = document.getElementById(`legend-item-${index}`);
-            if (target) {
-                target.classList.remove('border-transparent');
-                target.classList.add('bg-white', 'scale-[1.03]', 'shadow-md', 'border-gray-200', 'z-10', 'relative');
-                target.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            }
-        };
-
-        window.handlePieClick = function(e) {
-            const rect = e.currentTarget.getBoundingClientRect();
-            const x = e.clientX - rect.left - rect.width / 2;
-            const y = e.clientY - rect.top - rect.height / 2;
-            let angle = Math.atan2(y, x) * 180 / Math.PI;
-            angle = angle + 90;
-            if (angle < 0) angle += 360;
-            const percent = (angle / 360) * 100;
-            const slice = window.currentPieSlices.find(s => percent >= s.start && percent <= s.end);
-            if (slice) window.highlightLegendItem(slice.index);
-        };
-
-        function updateMonthlySummaryUI() {
-            const listContainer = document.getElementById('category-list');
-            if (currentUser) listContainer.innerHTML = '';
-            let monthlyTotal = 0;
-            const categoryTotals = {};
-            const targetMonthPrefix = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
-            for (const dateStr in expenses) {
-                if (dateStr.startsWith(targetMonthPrefix)) {
-                    expenses[dateStr].forEach(expense => {
-                        monthlyTotal += expense.amount;
-                        if (!categoryTotals[expense.category]) categoryTotals[expense.category] = 0;
-                        categoryTotals[expense.category] += expense.amount;
-                    });
-                }
-            }
-            document.getElementById('monthly-total').innerText = formatCurrency(monthlyTotal);
-            const currentIncome = monthlyIncomes[targetMonthPrefix] || 0;
-            const incomeInput = document.getElementById('monthly-income-input');
-            if (incomeInput && document.activeElement !== incomeInput) {
-                incomeInput.value = currentIncome > 0 ? currentIncome : '';
-            }
-            const remaining = currentIncome - monthlyTotal;
-            const remainingEl = document.getElementById('remaining-balance');
-            if (remainingEl) {
-                const isNegative = remaining < 0;
-                remainingEl.innerText = (isNegative ? '-' : '') + formatCurrency(Math.abs(remaining));
-                remainingEl.className = `text-xl font-bold ${isNegative ? 'text-[#ff3b30]' : 'text-green-500'} blur-[5px] transition-all duration-300 cursor-pointer select-none`;
-            }
-            const categories = Object.keys(categoryTotals);
-            if (categories.length === 0 && currentUser) {
-                listContainer.innerHTML = '<div class="text-sm text-center text-gray-400 py-4 italic w-full">No expenses recorded this month.</div>';
-                listContainer.className = "w-full flex items-center justify-center pb-2 pl-4 pt-2 mt-4";
-                return;
-            }
-            listContainer.className = "w-full pb-2 pt-5 mt-2";
-            categories.sort((a, b) => categoryTotals[b] - categoryTotals[a]);
-            const pieColors = ['#FF3B30','#007AFF','#FFCC00','#34C759','#AF52DE','#FF9500','#5AC8FA','#FF2D55','#5856D6','#8E8E93'];
-            let gradientStops = [];
-            let currentPercent = 0;
-            window.currentPieSlices = [];
-            let legendHTML = '<div class="mt-8 space-y-1 px-1 max-h-48 overflow-y-auto scrollbar-thin rounded-xl p-1.5 bg-gray-50/50 border border-gray-100/80">';
-            categories.forEach((cat, index) => {
-                const total = categoryTotals[cat];
-                const percent = monthlyTotal > 0 ? (total / monthlyTotal) * 100 : 0;
-                const color = pieColors[index % pieColors.length];
-                gradientStops.push(`${color} ${currentPercent}% ${currentPercent + percent}%`);
-                window.currentPieSlices.push({ start: currentPercent, end: currentPercent + percent, index: index });
-                currentPercent += percent;
-                const displayPercent = percent.toFixed(1);
-                legendHTML += `
-                    <div id="legend-item-${index}" class="legend-item flex items-center justify-between text-sm group border border-transparent p-2.5 rounded-xl transition-all duration-300 cursor-pointer" onclick="highlightLegendItem(${index})">
-                        <div class="flex items-center space-x-3 overflow-hidden pr-2 pointer-events-none">
-                            <div class="w-3.5 h-3.5 rounded-full flex-shrink-0 shadow-sm" style="background-color: ${color};"></div>
-                            <span class="text-gray-700 font-medium truncate group-hover:text-gray-900 transition-colors">${cat}</span>
-                        </div>
-                        <div class="flex items-center space-x-2 flex-shrink-0 pointer-events-none">
-                            <span class="text-gray-400 text-[11px] font-semibold w-10 text-right">${displayPercent}%</span>
-                            <span class="font-extrabold text-gray-800 text-[13px] w-16 text-right">${formatCurrency(total)}</span>
-                        </div>
-                    </div>
-                `;
-            });
-            legendHTML += '</div>';
-            listContainer.innerHTML = `
-                <div class="flex flex-col items-center w-full">
-                    <div class="relative w-48 h-48 rounded-full shadow-[0_15px_35px_-5px_rgba(0,0,0,0.15),0_8px_10px_-6px_rgba(0,0,0,0.1)] flex items-center justify-center cursor-pointer transition-transform duration-300 hover:scale-[1.02] active:scale-[0.98] border-[4px] border-white"
-                         style="background: conic-gradient(${gradientStops.join(', ')});"
-                         onclick="handlePieClick(event)">
-                        <div class="absolute inset-0 rounded-full shadow-[inset_0_12px_24px_rgba(255,255,255,0.4),inset_0_-8px_16px_rgba(0,0,0,0.1)] pointer-events-none"></div>
-                    </div>
-                    <div class="w-full mt-2">${legendHTML}</div>
-                </div>
-            `;
-        }
-
-        window.exportToCSV = function() {
-            const targetMonthPrefix = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
-            let csvContent = "data:text/csv;charset=utf-8,Date,Category,Amount\n";
-            let hasData = false;
-            const sortedDates = Object.keys(expenses).sort();
-            for (const dateStr of sortedDates) {
-                if (dateStr.startsWith(targetMonthPrefix)) {
-                    expenses[dateStr].forEach(exp => {
-                        hasData = true;
-                        csvContent += `${dateStr},"${exp.category}",${exp.amount.toFixed(2)}\n`;
-                    });
-                }
-            }
-            if (!hasData) {
-                alert(`No data to export for ${monthNames[currentMonth]} ${currentYear}`);
-                return;
-            }
-            const encodedUri = encodeURI(csvContent);
-            const link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
-            link.setAttribute("download", `Expenses_${monthNames[currentMonth]}_${currentYear}.csv`);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        };
-
-        // =========================================================================
-        // CATEGORY MANAGEMENT
-        // =========================================================================
-        window.openCategoryManager = function() {
-            document.getElementById('category-modal').classList.remove('hidden');
-            renderCategoryManagerList();
-        };
-
-        window.closeCategoryManager = function() {
-            document.getElementById('category-modal').classList.add('hidden');
-        };
-
-        function renderCategoryDropdown() {
-            const select = document.getElementById('expense-category');
-            const currentVal = select.value;
-            select.innerHTML = '';
-            userCategories.forEach(cat => {
-                const opt = document.createElement('option');
-                opt.value = cat;
-                opt.textContent = cat;
-                select.appendChild(opt);
-            });
-            if (userCategories.includes(currentVal)) {
-                select.value = currentVal;
-            } else if (userCategories.length > 0) {
-                select.value = userCategories[0];
-            }
-            window.toggleCustomCategory();
-        }
-
-        // FIX 5: Pass button element explicitly to avoid relying on implicit `event` global
-        // (which is undefined in strict mode / some desktop browsers)
-        window.handleAddCategory = async function(btnEl) {
-            if (!currentUser) return;
-            const input = document.getElementById('new-category-input');
-            const newCat = input.value.trim();
-            if (!newCat || userCategories.includes(newCat)) return;
-            const updatedList = [...userCategories, newCat].sort((a, b) => a.localeCompare(b));
-            const categoriesRef = doc(db, 'artifacts', appId, 'users', getWorkingUserId(), 'preferences', 'categories');
-            if (btnEl) { btnEl.disabled = true; btnEl.innerHTML = '...'; }
-            await setDoc(categoriesRef, { list: updatedList }, { merge: true });
-            input.value = '';
-            if (btnEl) { btnEl.disabled = false; btnEl.innerHTML = 'Add'; }
-        };
-
-        window.handleDeleteCategory = async function(catToRemove) {
-            if (!currentUser) return;
-            const updatedList = userCategories.filter(c => c !== catToRemove);
-            const categoriesRef = doc(db, 'artifacts', appId, 'users', getWorkingUserId(), 'preferences', 'categories');
-            await setDoc(categoriesRef, { list: updatedList }, { merge: true });
-        };
-
-        function renderCategoryManagerList() {
-            const listContainer = document.getElementById('category-manager-list');
-            listContainer.innerHTML = '';
-            if (userCategories.length === 0) {
-                listContainer.innerHTML = '<div class="text-sm text-gray-400 text-center py-6">No categories left. Use the input above to add a new one!</div>';
-                return;
-            }
-            userCategories.forEach(cat => {
-                const li = document.createElement('li');
-                li.className = "flex justify-between items-center py-2 px-3 bg-white hover:bg-gray-50 rounded-lg border border-gray-100 transition-colors";
-                const safeCat = cat.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-                li.innerHTML = `
-                    <span class="text-sm font-medium text-gray-700 truncate mr-2">${cat}</span>
-                    <button onclick="window.handleDeleteCategory('${safeCat}')" class="text-gray-400 hover:text-[#ff3b30] focus:outline-none p-1 transition-colors flex-shrink-0" title="Delete Category">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                    </button>
-                `;
-                listContainer.appendChild(li);
-            });
-        }
-
-        document.getElementById('new-category-input').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') window.handleAddCategory(document.getElementById('add-category-btn'));
-        });
-
-        // =========================================================================
-        // DEVICE SYNC
-        // =========================================================================
-        window.openSyncModal = function() {
-            document.getElementById('sync-modal').classList.remove('hidden');
-            const input = document.getElementById('sync-code-input');
-            if (customSyncId) input.value = customSyncId;
-            input.focus();
-        };
-
-        window.closeSyncModal = function() {
-            document.getElementById('sync-modal').classList.add('hidden');
-        };
-
-        window.applySyncCode = async function() {
-            const input = document.getElementById('sync-code-input');
-            const code = input.value.trim();
-            customSyncId = code ? encodeURIComponent(code).replace(/\./g, '_') : null;
-            closeSyncModal();
-
-            // FIX 6: If auth failed on page load (common on Mac/Safari), clicking
-            // "Link Device" from a user gesture provides a trusted context to retry.
-            // Many browsers only allow storage APIs after a user interaction.
-            if (!currentUser) {
-                const loadingState = document.getElementById('loading-state');
-                if (loadingState) {
-                    loadingState.style.display = 'block';
-                    loadingState.innerText = "Connecting to database...";
-                }
-                await attemptSignIn();
-                // onAuthStateChanged will handle loading data if sign-in succeeds
-            } else {
-                const loadingState = document.getElementById('loading-state');
-                if (loadingState) {
-                    loadingState.style.display = 'block';
-                    loadingState.innerText = "Syncing cloud database...";
-                }
-                expenses = {};
-                monthlyIncomes = {};
-                updateDailyExpensesUI();
-                updateMonthlySummaryUI();
-                loadExpenses(getWorkingUserId());
-            }
-        };
-
-        // =========================================================================
-        // INIT
-        // =========================================================================
+window.handleAddCategory = async function(btnEl) {
+    const input  = document.getElementById('new-category-input');
+    const newCat = input.value.trim();
+    if (!newCat || userCategories.includes(newCat)) return;
+    const updated = [...userCategories, newCat].sort((a,b) => a.localeCompare(b));
+    if (btnEl) { btnEl.disabled = true; btnEl.innerHTML = '…'; }
+    try {
+        await saveCategories(updated);
+        userCategories = updated;
         renderCategoryDropdown();
-        renderCalendar();
-        updateSelectedDayUI();
-    </script>
+        renderCategoryManagerList();
+        input.value = '';
+    } catch(e) { console.error("handleAddCategory:", e); }
+    if (btnEl) { btnEl.disabled = false; btnEl.innerHTML = 'Add'; }
+};
+
+window.handleDeleteCategory = async function(cat) {
+    const updated = userCategories.filter(c => c !== cat);
+    try {
+        await saveCategories(updated);
+        userCategories = updated;
+        renderCategoryDropdown();
+        renderCategoryManagerList();
+    } catch(e) { console.error("handleDeleteCategory:", e); }
+};
+
+window.openCategoryManager  = function() { document.getElementById('category-modal').classList.remove('hidden'); renderCategoryManagerList(); };
+window.closeCategoryManager = function() { document.getElementById('category-modal').classList.add('hidden'); };
+
+// ─── SYNC / DEVICE LINKING ────────────────────────────────────────────────────
+
+window.openSyncModal  = function() { document.getElementById('sync-modal').classList.remove('hidden'); };
+window.closeSyncModal = function() { document.getElementById('sync-modal').classList.add('hidden'); };
+
+window.applySyncCode = async function() {
+    const code = document.getElementById('sync-code-input').value.trim();
+    syncId = code ? encodeURIComponent(code).replace(/\./g, '_') : null;
+    try { localStorage.setItem(LS_SYNC_KEY, syncId || ""); } catch(_){}
+    closeSyncModal();
+    setLoading("Syncing…");
+    expenses = {}; monthlyIncomes = {};
+    renderAll();
+    await loadAllData();
+    renderAll();
+};
+
+// ─── EXPORT ───────────────────────────────────────────────────────────────────
+
+window.exportToCSV = function() {
+    const prefix = `${currentYear}-${String(currentMonth + 1).padStart(2,'0')}`;
+    let csv = "Date,Category,Amount\n";
+    let hasData = false;
+    Object.keys(expenses).sort().forEach(d => {
+        if (!d.startsWith(prefix)) return;
+        expenses[d].forEach(e => {
+            hasData = true;
+            csv += `${d},"${e.category}",${Number(e.amount).toFixed(2)}\n`;
+        });
+    });
+    if (!hasData) { alert(`No data for ${MONTH_NAMES[currentMonth]} ${currentYear}`); return; }
+    const link = document.createElement("a");
+    link.href     = "data:text/csv;charset=utf-8," + encodeURI(csv);
+    link.download = `Expenses_${MONTH_NAMES[currentMonth]}_${currentYear}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
+
+// ─── AUTO-DELETE OLD DATA (>12 months) ───────────────────────────────────────
+
+async function pruneOldData() {
+    const cutoff = new Date();
+    cutoff.setFullYear(cutoff.getFullYear() - 1);
+    const cutoffDate  = formatDate(cutoff);
+    const cutoffMonth = cutoffDate.substring(0, 7);
+    try {
+        const expDocs = await fsList(`${fsRoot()}/expenses`);
+        for (const d of expDocs) {
+            const { date } = fromFsFields(d.fields);
+            if (date && date < cutoffDate) await fsDelete(`${FS_BASE}/${d.name}`).catch(()=>{});
+        }
+        const incDocs = await fsList(`${fsRoot()}/incomes`);
+        for (const d of incDocs) {
+            const id = docIdFromName(d.name);
+            if (id < cutoffMonth) await fsDelete(`${FS_BASE}/${d.name}`).catch(()=>{});
+        }
+    } catch(e) { console.warn("pruneOldData:", e); }
+}
+
+// ─── RENDER FUNCTIONS ─────────────────────────────────────────────────────────
+
+function setLoading(html) {
+    const el = document.getElementById('loading-state');
+    if (!el) return;
+    el.style.display = 'block';
+    el.innerHTML = html;
+}
+
+function renderAll() {
+    renderCalendar();
+    updateSelectedDayUI();
+    updateDailyExpensesUI();
+    updateMonthlySummaryUI();
+}
+
+function formatDate(d) {
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function formatCurrency(n) { return '$' + parseFloat(n).toFixed(2); }
+
+window.changeMonth = function(dir) {
+    currentMonth += dir;
+    if (currentMonth > 11) { currentMonth = 0; currentYear++; }
+    else if (currentMonth < 0) { currentMonth = 11; currentYear--; }
+    window.selectDate(new Date(currentYear, currentMonth, 1));
+};
+
+window.selectDate = function(dateObj) {
+    currentDate     = dateObj;
+    currentMonth    = dateObj.getMonth();
+    currentYear     = dateObj.getFullYear();
+    selectedDateStr = formatDate(dateObj);
+    renderAll();
+};
+
+window.toggleCustomCategory = function() {
+    const sel = document.getElementById('expense-category');
+    const inp = document.getElementById('custom-category');
+    if (sel.value === 'Other') { inp.classList.remove('hidden'); inp.focus(); }
+    else { inp.classList.add('hidden'); inp.value = ''; }
+};
+
+function renderCalendar() {
+    document.getElementById('month-display').innerText = MONTH_NAMES[currentMonth];
+    const yr = document.getElementById('year-display');
+    yr.innerText = currentYear;
+    yr.classList.toggle('hidden', currentYear === new Date().getFullYear());
+
+    const container = document.getElementById('calendar-days');
+    container.innerHTML = '';
+    const firstDay   = new Date(currentYear, currentMonth, 1).getDay();
+    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+
+    for (let i = 0; i < firstDay; i++) container.appendChild(document.createElement('div'));
+
+    for (let i = 1; i <= daysInMonth; i++) {
+        const d   = new Date(currentYear, currentMonth, i);
+        const ds  = formatDate(d);
+        const sel = ds === selectedDateStr;
+        const has = expenses[ds] && expenses[ds].length > 0;
+
+        const btn = document.createElement('button');
+        btn.onclick = () => window.selectDate(d);
+        btn.className = `relative w-9 h-9 mx-auto flex items-center justify-center rounded-full text-[15px] transition-all duration-200 outline-none ${
+            sel ? "bg-[#ff3b30] text-white font-bold shadow-md transform scale-105"
+                : "text-gray-700 hover:bg-gray-200"
+        }`;
+        btn.innerText = i;
+
+        if (has && !sel) {
+            const dot = document.createElement('div');
+            dot.className = "absolute bottom-1 w-1 h-1 bg-red-400 rounded-full";
+            btn.appendChild(dot);
+        }
+        container.appendChild(btn);
+    }
+}
+
+function updateSelectedDayUI() {
+    document.getElementById('selected-date-text').innerText =
+        `${DAY_NAMES[currentDate.getDay()]}, ${MONTH_NAMES[currentDate.getMonth()]} ${currentDate.getDate()}`;
+    const total = (expenses[selectedDateStr] || []).reduce((s, e) => s + Number(e.amount), 0);
+    document.getElementById('daily-total').innerText = formatCurrency(total);
+}
+
+function updateDailyExpensesUI() {
+    const list = document.getElementById('daily-expense-list');
+    list.innerHTML = '';
+    const dayExps = expenses[selectedDateStr] || [];
+    if (!dayExps.length) return;
+
+    const groups = {};
+    dayExps.forEach(e => {
+        if (!groups[e.category]) groups[e.category] = { total: 0, items: [] };
+        groups[e.category].total += Number(e.amount);
+        groups[e.category].items.push(e);
+    });
+
+    Object.entries(groups).forEach(([cat, g], ci) => {
+        const uid_  = `cd-${ci}`;
+        const iid   = `ci-${ci}`;
+        const badge = g.items.length > 1 ? `<span class="text-[10px] text-gray-400 bg-gray-200 px-1.5 py-0.5 rounded-md ml-1.5">x${g.items.length}</span>` : '';
+        const safeCat = cat.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+
+        let itemsHtml = g.items.map(item => `
+            <div class="flex justify-between items-center py-1.5 pl-9 pr-3 border-t border-gray-100 bg-gray-100/50 hover:bg-gray-200/50 transition-colors">
+                <span class="text-gray-500 text-xs font-medium">${formatCurrency(item.amount)}</span>
+                <button onclick="window.deleteSingleExpense('${item.id}');event.stopPropagation();" class="text-gray-400 hover:text-red-500 focus:outline-none transition-colors">
+                    <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>`).join('');
+
+        const li = document.createElement('li');
+        li.className = "flex flex-col bg-gray-50 rounded-md border border-gray-100 overflow-hidden text-sm";
+        li.innerHTML = `
+            <div class="flex justify-between items-center px-3 py-2 cursor-pointer hover:bg-gray-100 transition-colors"
+                 onclick="document.getElementById('${uid_}').classList.toggle('hidden');document.getElementById('${iid}').classList.toggle('rotate-180')">
+                <div class="flex items-center">
+                    <svg id="${iid}" class="h-4 w-4 text-gray-400 mr-1.5 transition-transform duration-200 ${g.items.length>1?'':'opacity-40'}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                    </svg>
+                    <span class="text-gray-700 font-medium">${cat}</span>${badge}
+                </div>
+                <div class="flex items-center space-x-3">
+                    <span class="font-semibold text-gray-800">${formatCurrency(g.total)}</span>
+                    <button onclick="window.deleteCategoryExpenses('${safeCat}');event.stopPropagation();" class="text-gray-400 hover:text-red-500 focus:outline-none transition-colors">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                    </button>
+                </div>
+            </div>
+            <div id="${uid_}" class="hidden flex-col">${itemsHtml}</div>`;
+        list.appendChild(li);
+    });
+}
+
+window.currentPieSlices = [];
+
+window.highlightLegendItem = function(i) {
+    document.querySelectorAll('.legend-item').forEach(el => {
+        el.classList.remove('bg-white','scale-[1.03]','shadow-md','border-gray-200','z-10','relative');
+        el.classList.add('border-transparent');
+    });
+    const t = document.getElementById(`legend-item-${i}`);
+    if (t) {
+        t.classList.remove('border-transparent');
+        t.classList.add('bg-white','scale-[1.03]','shadow-md','border-gray-200','z-10','relative');
+        t.scrollIntoView({ behavior:'smooth', block:'nearest' });
+    }
+};
+
+window.handlePieClick = function(e) {
+    const r = e.currentTarget.getBoundingClientRect();
+    let angle = Math.atan2(e.clientY - r.top - r.height/2, e.clientX - r.left - r.width/2) * 180 / Math.PI + 90;
+    if (angle < 0) angle += 360;
+    const pct = (angle / 360) * 100;
+    const sl  = window.currentPieSlices.find(s => pct >= s.start && pct <= s.end);
+    if (sl) window.highlightLegendItem(sl.index);
+};
+
+function updateMonthlySummaryUI() {
+    const container   = document.getElementById('category-list');
+    const loadingEl   = document.getElementById('loading-state');
+    const prefix      = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}`;
+
+    let total = 0;
+    const cats = {};
+    for (const [ds, exps] of Object.entries(expenses)) {
+        if (!ds.startsWith(prefix)) continue;
+        exps.forEach(e => {
+            total += Number(e.amount);
+            cats[e.category] = (cats[e.category] || 0) + Number(e.amount);
+        });
+    }
+
+    document.getElementById('monthly-total').innerText = formatCurrency(total);
+
+    const income    = monthlyIncomes[prefix] || 0;
+    const incInput  = document.getElementById('monthly-income-input');
+    if (incInput && document.activeElement !== incInput) incInput.value = income > 0 ? income : '';
+
+    const remaining = income - total;
+    const remEl     = document.getElementById('remaining-balance');
+    if (remEl) {
+        remEl.innerText   = (remaining < 0 ? '-' : '') + formatCurrency(Math.abs(remaining));
+        remEl.className   = `text-xl font-bold ${remaining < 0 ? 'text-[#ff3b30]' : 'text-green-500'} blur-[5px] transition-all duration-300 cursor-pointer select-none`;
+    }
+
+    const catKeys = Object.keys(cats);
+    if (!catKeys.length) {
+        if (loadingEl) loadingEl.style.display = 'none';
+        container.innerHTML = '<div class="text-sm text-center text-gray-400 py-4 italic w-full">No expenses recorded this month.</div>';
+        container.className = "w-full flex items-center justify-center pb-2 pl-4 pt-2 mt-4";
+        return;
+    }
+    if (loadingEl) loadingEl.style.display = 'none';
+    container.className = "w-full pb-2 pt-5 mt-2";
+    catKeys.sort((a,b) => cats[b] - cats[a]);
+
+    const colors = ['#FF3B30','#007AFF','#FFCC00','#34C759','#AF52DE','#FF9500','#5AC8FA','#FF2D55','#5856D6','#8E8E93'];
+    let gradStops = [];
+    let cur = 0;
+    window.currentPieSlices = [];
+
+    let legendHtml = '<div class="mt-8 space-y-1 px-1 max-h-48 overflow-y-auto rounded-xl p-1.5 bg-gray-50/50 border border-gray-100/80">';
+    catKeys.forEach((cat, i) => {
+        const amt  = cats[cat];
+        const pct  = total > 0 ? (amt / total) * 100 : 0;
+        const col  = colors[i % colors.length];
+        gradStops.push(`${col} ${cur}% ${cur+pct}%`);
+        window.currentPieSlices.push({ start: cur, end: cur+pct, index: i });
+        cur += pct;
+        legendHtml += `
+            <div id="legend-item-${i}" class="legend-item flex items-center justify-between text-sm group border border-transparent p-2.5 rounded-xl transition-all duration-300 cursor-pointer" onclick="highlightLegendItem(${i})">
+                <div class="flex items-center space-x-3 overflow-hidden pr-2 pointer-events-none">
+                    <div class="w-3.5 h-3.5 rounded-full flex-shrink-0 shadow-sm" style="background-color:${col}"></div>
+                    <span class="text-gray-700 font-medium truncate group-hover:text-gray-900 transition-colors">${cat}</span>
+                </div>
+                <div class="flex items-center space-x-2 flex-shrink-0 pointer-events-none">
+                    <span class="text-gray-400 text-[11px] font-semibold w-10 text-right">${pct.toFixed(1)}%</span>
+                    <span class="font-extrabold text-gray-800 text-[13px] w-16 text-right">${formatCurrency(amt)}</span>
+                </div>
+            </div>`;
+    });
+    legendHtml += '</div>';
+
+    container.innerHTML = `
+        <div class="flex flex-col items-center w-full">
+            <div class="relative w-48 h-48 rounded-full shadow-[0_15px_35px_-5px_rgba(0,0,0,0.15)] flex items-center justify-center cursor-pointer transition-transform duration-300 hover:scale-[1.02] active:scale-[0.98] border-[4px] border-white"
+                 style="background:conic-gradient(${gradStops.join(',')})"
+                 onclick="handlePieClick(event)">
+                <div class="absolute inset-0 rounded-full shadow-[inset_0_12px_24px_rgba(255,255,255,0.4),inset_0_-8px_16px_rgba(0,0,0,0.1)] pointer-events-none"></div>
+            </div>
+            <div class="w-full mt-2">${legendHtml}</div>
+        </div>`;
+}
+
+function renderCategoryDropdown() {
+    const sel = document.getElementById('expense-category');
+    const cur = sel.value;
+    sel.innerHTML = '';
+    userCategories.forEach(c => {
+        const o = document.createElement('option');
+        o.value = c; o.textContent = c;
+        sel.appendChild(o);
+    });
+    sel.value = userCategories.includes(cur) ? cur : (userCategories[0] || '');
+    window.toggleCustomCategory();
+}
+
+function renderCategoryManagerList() {
+    const ul = document.getElementById('category-manager-list');
+    ul.innerHTML = '';
+    if (!userCategories.length) {
+        ul.innerHTML = '<div class="text-sm text-gray-400 text-center py-6">No categories. Add one above.</div>';
+        return;
+    }
+    userCategories.forEach(cat => {
+        const li = document.createElement('li');
+        li.className = "flex justify-between items-center py-2 px-3 bg-white hover:bg-gray-50 rounded-lg border border-gray-100 transition-colors";
+        const safe = cat.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+        li.innerHTML = `
+            <span class="text-sm font-medium text-gray-700 truncate mr-2">${cat}</span>
+            <button onclick="window.handleDeleteCategory('${safe}')" class="text-gray-400 hover:text-[#ff3b30] focus:outline-none p-1 transition-colors flex-shrink-0">
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+            </button>`;
+        ul.appendChild(li);
+    });
+}
+
+// ─── EVENT LISTENERS ──────────────────────────────────────────────────────────
+
+document.getElementById('expense-amount').addEventListener('keypress', e => { if (e.key==='Enter') window.addExpense(); });
+document.getElementById('new-category-input').addEventListener('keypress', e => { if (e.key==='Enter') window.handleAddCategory(document.getElementById('add-category-btn')); });
+document.getElementById('sync-code-input').addEventListener('keypress', e => { if (e.key==='Enter') window.applySyncCode(); });
+
+document.addEventListener('click', e => {
+    const r = document.getElementById('remaining-balance');
+    if (r && e.target !== r) r.classList.add('blur-[5px]');
+});
+
+// ─── BOOT ─────────────────────────────────────────────────────────────────────
+
+async function onAuthReady() {
+    renderCategoryDropdown();
+    renderCalendar();
+    updateSelectedDayUI();
+    setLoading("Loading data…");
+    await loadAllData();
+    renderAll();
+    pruneOldData(); // fire-and-forget cleanup
+    startPolling();
+}
+
+initAuth();
+
+</script>
 </body>
 </html>
