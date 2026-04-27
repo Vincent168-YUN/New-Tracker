@@ -33,9 +33,14 @@
             </div>
             
             <div class="flex items-center space-x-3">
-                <button onclick="exportToCSV()" class="text-red-500 hover:text-red-600 focus:outline-none transition-colors" title="Export Month to CSV">
+                <button onclick="exportToCSV()" class="text-gray-400 hover:text-gray-600 focus:outline-none transition-colors" title="Export Month to CSV">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                       <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+                    </svg>
+                </button>
+                <button onclick="handleLogout()" class="text-red-500 hover:text-red-600 focus:outline-none transition-colors" title="Sign Out">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                     </svg>
                 </button>
             </div>
@@ -146,9 +151,29 @@
         </div>
     </div>
 
+    <!-- Auth Modal (NEW) -->
+    <div id="auth-modal" class="fixed inset-0 bg-gray-100 z-50 flex items-center justify-center p-4 transition-opacity">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-[340px] overflow-hidden p-6 space-y-4">
+            <h2 class="text-2xl font-bold text-gray-900 text-center">Expense Tracker</h2>
+            <p class="text-xs text-gray-500 text-center mb-4">Create an account or login to sync your expenses across all devices.</p>
+            
+            <div id="auth-error" class="text-[#ff3b30] bg-red-50 p-2 rounded text-xs font-medium text-center hidden border border-red-100"></div>
+            
+            <div class="space-y-3">
+                <input type="email" id="auth-email" class="bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-lg focus:ring-red-500 focus:border-red-500 block w-full p-2.5 outline-none transition-colors" placeholder="Email address">
+                <input type="password" id="auth-password" class="bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-lg focus:ring-red-500 focus:border-red-500 block w-full p-2.5 outline-none transition-colors" placeholder="Password">
+            </div>
+            
+            <div class="flex space-x-2 pt-2">
+                <button onclick="handleLogin()" class="flex-1 bg-gray-900 hover:bg-black text-white text-sm font-medium py-2.5 rounded-lg transition-colors shadow-sm">Login</button>
+                <button onclick="handleSignup()" class="flex-1 bg-[#ff3b30] hover:bg-red-600 text-white text-sm font-medium py-2.5 rounded-lg transition-colors shadow-sm">Sign Up</button>
+            </div>
+        </div>
+    </div>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, setDoc, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // =========================================================================
@@ -189,27 +214,61 @@
         const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
         const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
-        // Initialization: Clean Standalone Anonymous Login
-        const initAuth = async () => {
+        // Auth Functions
+        window.handleLogin = async function() {
+            const email = document.getElementById('auth-email').value;
+            const password = document.getElementById('auth-password').value;
+            const errEl = document.getElementById('auth-error');
+            
+            if (!email || !password) {
+                errEl.innerText = "Please enter both email and password.";
+                errEl.classList.remove('hidden');
+                return;
+            }
+            
             try {
-                await signInAnonymously(auth);
+                await signInWithEmailAndPassword(auth, email, password);
+                errEl.classList.add('hidden');
             } catch (error) {
-                console.error("Authentication Error:", error);
-                const loadingState = document.getElementById('loading-state');
-                if (loadingState) {
-                    loadingState.innerHTML = `<span class="text-red-500 font-bold">Auth Error:</span> ${error.message}`;
-                }
+                errEl.innerText = error.message.replace('Firebase: ', '');
+                errEl.classList.remove('hidden');
             }
         };
 
-        initAuth();
+        window.handleSignup = async function() {
+            const email = document.getElementById('auth-email').value;
+            const password = document.getElementById('auth-password').value;
+            const errEl = document.getElementById('auth-error');
+            
+            if (!email || !password) {
+                errEl.innerText = "Please enter both email and password.";
+                errEl.classList.remove('hidden');
+                return;
+            }
+            
+            try {
+                await createUserWithEmailAndPassword(auth, email, password);
+                errEl.classList.add('hidden');
+            } catch (error) {
+                errEl.innerText = error.message.replace('Firebase: ', '');
+                errEl.classList.remove('hidden');
+            }
+        };
+
+        window.handleLogout = function() {
+            signOut(auth);
+        };
 
         onAuthStateChanged(auth, (user) => {
             currentUser = user;
             if (user) {
+                document.getElementById('auth-modal').classList.add('hidden');
                 autoDeleteOldData(user.uid);
                 loadExpenses(user.uid);
             } else {
+                document.getElementById('auth-modal').classList.remove('hidden');
+                document.getElementById('auth-password').value = ''; // Clear password field
+                
                 expenses = {};
                 monthlyIncomes = {};
                 userCategories = [...defaultCategories];
@@ -222,7 +281,7 @@
                 // FIX: Check if element exists before modifying to prevent crash
                 const loadingState = document.getElementById('loading-state');
                 if (loadingState) {
-                    loadingState.innerText = "Please log in.";
+                    loadingState.innerText = "Please log in to load your data.";
                 }
             }
         });
