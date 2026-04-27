@@ -260,6 +260,12 @@
         };
 
         onAuthStateChanged(auth, (user) => {
+            // Force log out if the user is using an old anonymous session
+            if (user && user.isAnonymous) {
+                signOut(auth);
+                return;
+            }
+
             currentUser = user;
             if (user) {
                 document.getElementById('auth-modal').classList.add('hidden');
