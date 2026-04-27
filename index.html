@@ -178,7 +178,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, setPersistence, inMemoryPersistence } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, setDoc, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // =========================================================================
@@ -234,6 +234,9 @@
         // Initialization: Auth Before Queries
         const initAuth = async () => {
             try {
+                // FIX: Use in-memory persistence to bypass strict Mac/Safari tracking blockers
+                await setPersistence(auth, inMemoryPersistence);
+
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                     try {
                         // Attempt to use environment token
@@ -969,7 +972,7 @@
             document.getElementById('sync-modal').classList.add('hidden');
         };
 
-        window.applySyncCode = function() {
+        window.applySyncCode = async function() {
             const input = document.getElementById('sync-code-input');
             const code = input.value.trim();
             if (code) {
@@ -980,8 +983,24 @@
             
             closeSyncModal();
             
-            if (currentUser) {
-                const loadingState = document.getElementById('loading-state');
+            const loadingState = document.getElementById('loading-state');
+            
+            // If the browser previously blocked auth on page load (common on Mac/Safari), 
+            // try again now that the user has explicitly clicked a button.
+            if (!currentUser) {
+                if (loadingState) {
+                    loadingState.style.display = 'block';
+                    loadingState.innerText = "Attempting database connection...";
+                }
+                try {
+                    await setPersistence(auth, inMemoryPersistence);
+                    await signInAnonymously(auth);
+                    // Success! onAuthStateChanged will automatically trigger and load data.
+                } catch (error) {
+                    alert("Mac/Safari Warning: Your browser is blocking the secure database connection.\n\nTo fix this:\n1. Open Safari Settings (Preferences) > Privacy\n2. UNCHECK 'Prevent cross-site tracking'\n3. Refresh this page and try again.");
+                    if (loadingState) loadingState.innerText = "Connection blocked by Mac browser settings.";
+                }
+            } else {
                 if (loadingState) {
                     loadingState.style.display = 'block';
                     loadingState.innerText = "Syncing cloud database...";
