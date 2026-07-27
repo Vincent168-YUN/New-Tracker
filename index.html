@@ -18,6 +18,16 @@
             -webkit-appearance: none; 
             margin: 0; 
         }
+
+        /* Pulsing highlight animation for calendar days matching a selected category */
+        @keyframes categoryPulse {
+            0% { box-shadow: 0 0 0 0 var(--pulse-color, rgba(255,59,48,0.6)); }
+            70% { box-shadow: 0 0 0 10px rgba(255,59,48,0); }
+            100% { box-shadow: 0 0 0 0 rgba(255,59,48,0); }
+        }
+        .category-highlight-day {
+            animation: categoryPulse 1.4s ease-out infinite;
+        }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen flex items-center justify-center py-10 px-4">
@@ -200,7 +210,7 @@
         let unsubscribeIncomesSnap = null;
         // =========================================================================
 
-        const defaultCategories = ["Food/Drinks", "Parking", "Grocery", "Event", "Beer", "Online shopping", "Vehicle Care", "Data plan", "Gift", "Fitness", "Family", "Contact lens", "Hair cut", "Coffee bean and Milk", "Travel", "Other"].sort((a, b) => a.localeCompare(b));
+        const defaultCategories = ["Food/Drinks", "Parking", "Grocery", "Event", "Beer", "Online shopping", "Vehicle Care", "Data plan", "Gift", "Fitness", "Family", "Contact lens", "Hair cut", "Coffee bean and Milk", "Travel", "Gasoline", "Wife", "Harry", "Other"].sort((a, b) => a.localeCompare(b));
         let userCategories = [...defaultCategories];
         let unsubscribeCategoriesSnap = null;
 
@@ -419,6 +429,13 @@
             return '$' + parseFloat(amount).toFixed(2);
         }
 
+        function hexToRgba(hex, alpha) {
+            const r = parseInt(hex.slice(1, 3), 16);
+            const g = parseInt(hex.slice(3, 5), 16);
+            const b = parseInt(hex.slice(5, 7), 16);
+            return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+        }
+
         window.changeMonth = function(direction) {
             currentMonth += direction;
             if (currentMonth > 11) {
@@ -599,6 +616,21 @@
                     dayBtn.appendChild(dot);
                 }
 
+                // Pulsing highlight ring for days matching the currently selected category filter
+                if (window.selectedCategoryFilter && hasExpenses) {
+                    const matchesCategory = expenses[dayStr].some(exp => exp.category === window.selectedCategoryFilter);
+                    if (matchesCategory) {
+                        const color = (window.categoryColorMap && window.categoryColorMap[window.selectedCategoryFilter]) || '#ff3b30';
+                        dayBtn.classList.add('category-highlight-day');
+                        dayBtn.style.setProperty('--pulse-color', hexToRgba(color, 0.55));
+                        dayBtn.style.border = `2px solid ${color}`;
+                        if (!isSelected) {
+                            dayBtn.style.color = color;
+                            dayBtn.style.fontWeight = '700';
+                        }
+                    }
+                }
+
                 daysContainer.appendChild(dayBtn);
             }
         }
@@ -685,10 +717,28 @@
             });
         }
 
-        // --- NEW GLOBALS FOR PIE CHART INTERACTION ---
+        // --- GLOBALS FOR PIE CHART / CATEGORY INTERACTION ---
         window.currentPieSlices = [];
+        window.currentCategoryList = [];
+        window.categoryColorMap = {};
+        window.selectedCategoryFilter = null;
         
         window.highlightLegendItem = function(index) {
+            const category = window.currentCategoryList ? window.currentCategoryList[index] : null;
+
+            // Toggle off if the same category is clicked again
+            if (window.selectedCategoryFilter && window.selectedCategoryFilter === category) {
+                window.selectedCategoryFilter = null;
+                document.querySelectorAll('.legend-item').forEach(el => {
+                    el.classList.remove('bg-white', 'scale-[1.03]', 'shadow-md', 'border-gray-200', 'z-10', 'relative');
+                    el.classList.add('border-transparent');
+                });
+                renderCalendar();
+                return;
+            }
+
+            window.selectedCategoryFilter = category;
+
             // Remove highlight from all items
             document.querySelectorAll('.legend-item').forEach(el => {
                 el.classList.remove('bg-white', 'scale-[1.03]', 'shadow-md', 'border-gray-200', 'z-10', 'relative');
@@ -702,6 +752,9 @@
                 // Ensure the highlighted item scrolls smoothly into view
                 target.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             }
+
+            // Re-render the calendar so the exact spend dates for this category pulse into view
+            renderCalendar();
         };
 
         window.handlePieClick = function(e) {
@@ -790,6 +843,8 @@
             let gradientStops = [];
             let currentPercent = 0;
             window.currentPieSlices = []; // Reset slice math data
+            window.currentCategoryList = categories; // Track category order for legend/calendar linkage
+            window.categoryColorMap = {}; // Track colors so calendar highlight matches the pie/legend
             
             // Add a subtle container background for the legend items
             let legendHTML = '<div class="mt-8 space-y-1 px-1 max-h-48 overflow-y-auto scrollbar-thin rounded-xl p-1.5 bg-gray-50/50 border border-gray-100/80">';
@@ -798,6 +853,7 @@
                 const total = categoryTotals[cat];
                 const percent = monthlyTotal > 0 ? (total / monthlyTotal) * 100 : 0;
                 const color = pieColors[index % pieColors.length];
+                window.categoryColorMap[cat] = color;
 
                 // Build the conic-gradient string
                 gradientStops.push(`${color} ${currentPercent}% ${currentPercent + percent}%`);
@@ -839,6 +895,16 @@
                     </div>
                 </div>
             `;
+
+            // If a category is still selected while browsing months, keep its legend item highlighted
+            if (window.selectedCategoryFilter && categories.includes(window.selectedCategoryFilter)) {
+                const idx = categories.indexOf(window.selectedCategoryFilter);
+                const target = document.getElementById(`legend-item-${idx}`);
+                if (target) {
+                    target.classList.remove('border-transparent');
+                    target.classList.add('bg-white', 'scale-[1.03]', 'shadow-md', 'border-gray-200', 'z-10', 'relative');
+                }
+            }
         }
 
         window.exportToCSV = function() {
